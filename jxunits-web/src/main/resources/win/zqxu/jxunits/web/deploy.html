@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<title>Project List</title>
+<link rel="stylesheet" type="text/css" href="w2ui-1.5.rc1.min.css" />
+<link rel="stylesheet" type="text/css" href="jnlp-deploy.css" />
+<script type="text/javascript" src="jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="w2ui-1.5.rc1.min.js"></script>
+<script type="text/javascript" src="jnlp-deploy.js"></script>
+<script type="text/javascript">
+  $(document).ready(function() {
+    deployUtils.locale(function() {
+      deployUtils.initDeployPage();
+    });
+  });
+</script>
+</head>
+<body>
+  <div id="projectForm" style="height: 0px; overflow: hidden;">
+    <div class="w2ui-page page-0">
+      <div style="height: 100%; display: flex; flex-direction: column;">
+        <div style="flex-grow: 0">
+          <div style="width: 400px; float: left; margin-right: 0px;">
+            <div class="w2ui-group jnlp-w2ui-group">
+              <div class="w2ui-field w2ui-span8">
+                <label>Name:</label>
+                <div>
+                  <input name="name" type="text" readonly="readonly" />
+                </div>
+              </div>
+              <div class="w2ui-field w2ui-span8">
+                <label>Title:</label>
+                <div>
+                  <input name="title" type="text" style="width: 100%" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="width: 260px; float: right; margin-left: 0px;">
+            <div class="w2ui-group jnlp-w2ui-group">
+              <div class="w2ui-field w2ui-span4">
+                <label>Version:</label>
+                <div>
+                  <input name="version" type="text" style="width: 100%" />
+                </div>
+              </div>
+              <div class="w2ui-field w2ui-span4">
+                <label id="icons_label">Icons:</label>
+                <div>
+                  <div id="icon_default" class="jnlp-project-icon"></div>
+                  <div id="icon_shortcut" class="jnlp-project-icon"></div>
+                  <div id="icon_splash" class="jnlp-project-icon"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="clear: both;">
+            <div class="w2ui-group jnlp-w2ui-group">
+              <div class="w2ui-field w2ui-span8">
+                <label>Module Base Class:</label>
+                <div>
+                  <input name="moduleBaseClass" type="text" style="width: 100%" />
+                </div>
+              </div>
+              <div class="w2ui-field w2ui-span8">
+                <label>Module Name Getter:</label>
+                <div>
+                  <input name="moduleNameGetter" type="text" style="width: 100%" />
+                </div>
+              </div>
+              <div class="w2ui-field w2ui-span8">
+                <label>Module Version Getter:</label>
+                <div>
+                  <input name="moduleVersionGetter" type="text" style="width: 100%" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="libraryGrid" style="margin-top: 15px; flex-grow: 1"></div>
+      </div>
+    </div>
+  </div>
+  <div style="width: 0px; height: 0px; overflow: hidden;">
+    <input id="jnlpUploader" type="file" accept=".jnlp" /> <input id="jarUploader" type="file"
+      accept=".jar" multiple /> <input id="iconUploader" type="file" accept=".gif,.jpg,.jpeg,.ico,.png" />
+  </div>
+</body>
+</html>

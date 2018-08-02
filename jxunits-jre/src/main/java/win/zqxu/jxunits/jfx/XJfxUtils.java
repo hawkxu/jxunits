@@ -13,6 +13,7 @@ import java.util.Map.Entry;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.event.Event;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -36,6 +37,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Modality;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import win.zqxu.jxunits.jre.XObjectUtils;
 import win.zqxu.jxunits.jre.XResource;
 
@@ -585,6 +587,18 @@ public class XJfxUtils {
   }
 
   /**
+   * close window which own the reference node, fire WindowEvent.WINDOW_CLOSE_REQUEST for
+   * the window
+   * 
+   * @param reference
+   *          any node in the closing window
+   */
+  public static void closeWindow(Node reference) {
+    Window window = reference.getScene().getWindow();
+    Event.fireEvent(window, new WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST));
+  }
+
+  /**
    * Create an read only observable list for the observable map
    * 
    * @param <K>
@@ -626,8 +640,9 @@ public class XJfxUtils {
    */
   public static void resizeColumnToFitTable(TableColumn<?, ?> column) {
     TableView<?> table = column.getTableView();
-    Insets insets = table.getInsets();
-    double freeWidth = table.getWidth() - insets.getLeft() - insets.getRight();
+    Node container = table.lookup(".clipped-container");
+    if (container == null) return;
+    double freeWidth = container.prefWidth(-1);
     for (TableColumn<?, ?> item : table.getColumns())
       if (item.isVisible()) freeWidth -= item.getWidth();
     if (freeWidth == 0) return;
@@ -636,7 +651,7 @@ public class XJfxUtils {
       method.setAccessible(true);
       method.invoke(column, column.getWidth() + freeWidth);
     } catch (Exception ex) {
-      // safely ignored any exception
+      // completely ignored any exceptions
     }
   }
 }

@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import com.sun.javafx.scene.control.skin.DatePickerSkin;
 import com.sun.javafx.util.Utils;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -31,6 +32,7 @@ import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
 import javafx.scene.control.Skinnable;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.effect.BlurType;
@@ -159,7 +161,7 @@ public abstract class XValueProvider<T> {
    *          the consumer to call
    * @return value provider
    */
-  public static <T> XValueProvider<T> FREE(Consumer<T> consumer) {
+  public static <T> XValueProvider<T> FREE(Consumer<XValueField<T>> consumer) {
     return new XFreeValueProvider<>(XImageLoader.get("pickup.png"), consumer);
   }
 
@@ -396,8 +398,6 @@ public abstract class XValueProvider<T> {
       if (itemsList == null) {
         itemsList = new ListView<>();
         itemsList.itemsProperty().bind(itemsProperty());
-        itemsList.setPrefWidth(field.getWidth());
-        itemsList.setPrefHeight(field.getHeight() * 8);
         itemsList.getSelectionModel().selectedItemProperty()
             .addListener((v, o, n) -> handleSelected());
       }
@@ -414,6 +414,17 @@ public abstract class XValueProvider<T> {
       else
         listView.getSelectionModel().clearSelection();
       return listView;
+    }
+
+    @Override
+    protected void handleShown() {
+      itemsList.setPrefWidth(field.getWidth());
+      Node cell = itemsList.lookup(".list-cell");
+      double height = cell.prefHeight(-1);
+      int rows = Math.min(8, getItems().size());
+      Insets insets = itemsList.getInsets();
+      itemsList.setPrefHeight(height * rows
+          + insets.getTop() + insets.getBottom());
     }
 
     private void handleSelected() {
@@ -520,20 +531,15 @@ public abstract class XValueProvider<T> {
     }
 
     @Override
-    protected void handleShown() {
-      Region header = (Region) itemsTable.lookup("TableHeaderRow");
-      header.setPrefHeight(0);
-      header.setVisible(false);
-      XJfxUtils.resizeColumnToFitContent(itemsTable.getColumns().get(0));
-      XJfxUtils.resizeColumnToFitContent(itemsTable.getColumns().get(1));
-      Insets insets = itemsTable.getInsets();
-      double prefWidth = insets.getLeft() + insets.getRight();
-      for (TableColumn<?, ?> column : itemsTable.getColumns()) {
-        if (column.isVisible()) prefWidth += column.getWidth();
-      }
-      itemsTable.setPrefWidth(prefWidth);
-      itemsTable.autosize();
-      XJfxUtils.resizeColumnToFitTable(itemsTable.getColumns().get(1));
+    protected Node getPopupContent() {
+      TableView<Entry<T, String>> tableView = getTableView();
+      int index = indexOf(getEditingValue());
+      tableView.scrollTo(index);
+      if (index != -1)
+        tableView.getSelectionModel().select(index);
+      else
+        tableView.getSelectionModel().clearSelection();
+      return tableView;
     }
 
     private TableView<Entry<T, String>> getTableView() {
@@ -554,21 +560,8 @@ public abstract class XValueProvider<T> {
             .addListener((v, o, n) -> handleSelected());
         itemsTable.setMinWidth(field.getWidth());
         itemsTable.setMaxWidth(field.getWidth() * 2);
-        itemsTable.setPrefHeight(field.getHeight() * 8);
       }
       return itemsTable;
-    }
-
-    @Override
-    protected Node getPopupContent() {
-      TableView<Entry<T, String>> tableView = getTableView();
-      int index = indexOf(getEditingValue());
-      tableView.scrollTo(index);
-      if (index != -1)
-        tableView.getSelectionModel().select(index);
-      else
-        tableView.getSelectionModel().clearSelection();
-      return tableView;
     }
 
     private int indexOf(T value) {
@@ -578,6 +571,29 @@ public abstract class XValueProvider<T> {
         if (Objects.equals(value, item.getKey())) return index;
       }
       return -1;
+    }
+
+    @Override
+    protected void handleShown() {
+      Region header = (Region) itemsTable.lookup("TableHeaderRow");
+      header.setPrefHeight(0);
+      header.setVisible(false);
+      XJfxUtils.resizeColumnToFitContent(itemsTable.getColumns().get(0));
+      XJfxUtils.resizeColumnToFitContent(itemsTable.getColumns().get(1));
+      Insets insets = itemsTable.getInsets();
+      double prefWidth = insets.getLeft() + insets.getRight();
+      for (TableColumn<?, ?> column : itemsTable.getColumns()) {
+        if (column.isVisible()) prefWidth += column.getWidth();
+      }
+      itemsTable.setPrefWidth(prefWidth);
+      TableRow<?> tableRow = (TableRow<?>) itemsTable.lookup("TableRow");
+      double rowHeight = tableRow.getHeight();
+      int rows = Math.min(8, itemsTable.getItems().size());
+      double insetsHeight = insets.getTop() + insets.getBottom();
+      itemsTable.setPrefHeight(rowHeight * rows + insetsHeight);
+      Platform.runLater(() -> {
+        XJfxUtils.resizeColumnToFitTable(itemsTable.getColumns().get(1));
+      });
     }
 
     private void handleSelected() {
@@ -631,7 +647,7 @@ public abstract class XValueProvider<T> {
    * @author zqxu
    */
   public static class XPickValueProvider<T> extends XAbstractValueProvider<T> {
-    private Callback<T, T> picker;
+    private final Callback<T, T> picker;
 
     public XPickValueProvider(Image icon, Callback<T, T> picker) {
       super(icon);
@@ -656,16 +672,16 @@ public abstract class XValueProvider<T> {
    * @author zqxu
    */
   public static class XFreeValueProvider<T> extends XAbstractValueProvider<T> {
-    private Consumer<T> consumer;
+    private final Consumer<XValueField<T>> consumer;
 
-    public XFreeValueProvider(Image icon, Consumer<T> consumer) {
+    public XFreeValueProvider(Image icon, Consumer<XValueField<T>> consumer) {
       super(icon);
       this.consumer = consumer;
     }
 
     @Override
     protected void invokeProvider() {
-      consumer.accept(getEditingValue());
+      consumer.accept(field);
     }
 
     @Override

@@ -1,115 +1,127 @@
 package win.zqxu.jxunits.jre;
 
 import java.rmi.AlreadyBoundException;
-import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Utility class to make singleton signal between JVMs
+ * Utility class to make singleton between JVMs using RMI
  */
 public class XSingletonSignal {
-  private static Map<String, SingletonService> holder;
-  private static Map<String, List<Runnable>> handler;
+  private static Map<String, Singleton> singletonHolder = new HashMap<>();
+  private static Map<String, Runnable> callbackHolder = new HashMap<>();
 
   /**
-   * start singleton signal if possible, failed if another JVM already start the singleton
-   * signal for the name
+   * Start singleton if possible, failed if another JVM or thread already started
+   * singleton for the name
    * 
    * @param name
-   *          the singleton signal name
+   *          the singleton name
+   * @param callback
+   *          the callback when another thread try to start same singleton
    * @return true if start succeed, false if failed.
    * @throws RemoteException
    *           if call RMI failed
    */
-  public static boolean start(String name) throws RemoteException {
-    Registry registry;
-    try {
-      registry = LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
-    } catch (RemoteException ex) {
-      registry = LocateRegistry.getRegistry();
+  public static boolean start(String name, Runnable callback) throws RemoteException {
+    synchronized (singletonHolder) {
+      if (singletonHolder.containsKey(name))
+        throw new RemoteException("the singleton was already started");
+      return tryStartSingleton(name, callback);
     }
+  }
+
+  private static boolean tryStartSingleton(String name, Runnable callback)
+      throws RemoteException {
+    Registry registry = getRegistry();
     try {
-      SingletonSignal service = (SingletonSignal) registry.lookup(name);
-      service.notifySingleton(name);
-      return false;
+      // Can not use class Service at this point
+      Remote remote = registry.lookup(name);
+      if (remote instanceof Singleton) {
+        Singleton singleton = (Singleton) remote;
+        singleton.notifyOwner(name);
+        return false;
+      }
+      throw new RemoteException("other application started same singleton");
     } catch (NotBoundException ex) {
       try {
-        SingletonService service = createSingleton(name);
-        registry.bind(name, UnicastRemoteObject.exportObject(service, 0));
+        Singleton singleton = new Service();
+        registry.bind(name, UnicastRemoteObject.exportObject(singleton, 0));
+        singletonHolder.put(name, singleton);
+        callbackHolder.put(name, callback);
+        return true;
       } catch (AlreadyBoundException ex2) {
-        throw new RemoteException("starting conflict", ex2);
+        throw new RemoteException("Conflict while starting singleton", ex2);
       }
-      return true;
     }
   }
 
-  private static SingletonService createSingleton(String name) {
-    if (holder == null) {
-      holder = new ConcurrentHashMap<>();
-    }
-    if (!holder.containsKey(name)) {
-      holder.put(name, new SingletonService());
-    }
-    return holder.get(name);
-  }
-
-  /**
-   * handle singleton signal notify, when another singleton signal for the name trying to
-   * start, the callback will be called
-   * 
-   * @param name
-   *          the singleton signal name
-   * @param callback
-   *          the callback to call
-   */
-  public static void handle(String name, Runnable callback) {
-    if (handler == null) {
-      handler = new ConcurrentHashMap<>();
-    }
-    List<Runnable> list = handler.get(name);
-    if (list == null) {
-      handler.put(name, list = new ArrayList<>());
-    }
-    if (!list.contains(callback)) list.add(callback);
-  }
-
-  /**
-   * stop singleton signal for the name, NO-OP if the singleton signal not started by
-   * current process
-   * 
-   * @param name
-   *          the singleton signal name
-   */
-  public static void stop(String name) {
+  private static Registry getRegistry() throws RemoteException {
     try {
-      if (holder != null && holder.containsKey(name)) {
-        UnicastRemoteObject.unexportObject(holder.remove(name), true);
-      }
-    } catch (NoSuchObjectException ex) {
-      // safety ignore this exception
+      return LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+    } catch (RemoteException ex) {
+      return LocateRegistry.getRegistry(); // registry should be started
     }
   }
 
-  private static interface SingletonSignal extends Remote {
-    public void notifySingleton(String name) throws RemoteException;
+  private static void notifyByAnother(String name) {
+    Runnable callback = callbackHolder.get(name);
+    if (callback != null) callback.run();
   }
 
-  private static class SingletonService implements SingletonSignal {
+  /**
+   * Determine whether the singleton was started by current process
+   * 
+   * @param name
+   *          the singleton name
+   * @return true or false
+   */
+  public static boolean isOwnerOf(String name) {
+    synchronized (singletonHolder) {
+      return singletonHolder.containsKey(name);
+    }
+  }
+
+  /**
+   * Stop singleton for the name
+   * 
+   * @param name
+   *          the singleton name
+   * @throws RemoteException
+   *           if call RMI failed
+   */
+  public static void stop(String name) throws RemoteException {
+    synchronized (singletonHolder) {
+      if (singletonHolder.containsKey(name)) {
+        Singleton singleton = singletonHolder.get(name);
+        UnicastRemoteObject.unexportObject(singleton, true);
+        try {
+          getRegistry().unbind(name);
+        } catch (NotBoundException ex) {
+          throw new RemoteException("stop singleton " + name + "failed", ex);
+        }
+        singletonHolder.remove(name);
+        callbackHolder.remove(name);
+        return;
+      }
+    }
+    throw new RemoteException("current process not own the singleton " + name);
+  }
+
+  private static interface Singleton extends Remote {
+    public void notifyOwner(String name) throws RemoteException;
+  }
+
+  private static class Service implements Singleton {
     @Override
-    public void notifySingleton(String name) {
-      if (handler == null) return;
-      List<Runnable> list = handler.get(name);
-      if (list == null) return;
-      for (Runnable callback : list) callback.run();
+    public void notifyOwner(String name) throws RemoteException {
+      XSingletonSignal.notifyByAnother(name);
     }
   }
 }

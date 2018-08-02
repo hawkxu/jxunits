@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<title>Project List</title>
+<link rel="stylesheet" type="text/css" href="w2ui-1.5.rc1.min.css" />
+<link rel="stylesheet" type="text/css" href="jnlp-deploy.css" />
+<script type="text/javascript" src="jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="w2ui-1.5.rc1.min.js"></script>
+<script type="text/javascript" src="jnlp-deploy.js"></script>
+<script type="text/javascript">
+  $(document).ready(function() {
+    deployUtils.locale(function() {
+      deployUtils.initHomePage();
+    });
+  });
+</script>
+</head>
+<body>
+  <div id="projectGrid"></div>
+</body>
+</html>

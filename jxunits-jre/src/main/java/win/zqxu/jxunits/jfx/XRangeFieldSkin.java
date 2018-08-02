@@ -2,6 +2,7 @@ package win.zqxu.jxunits.jfx;
 
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -14,14 +15,16 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import win.zqxu.jxunits.jre.XResource;
 
-class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeField<T>> {
-  private XRangeField<T> control;
-  private Button optionButton;
-  private XRangeOptionMenu optionMenu;
-  private XValueField<T> lowField;
-  private Label toLabel;
-  private XValueField<T> highField;
-  private Button multipleButton;
+public class XRangeFieldSkin<T extends Comparable<? super T>>
+    extends SkinBase<XRangeField<T>> {
+  private static final PseudoClass FIXED = PseudoClass.getPseudoClass("fixed");
+  protected XRangeField<T> control;
+  protected Button btnOption;
+  protected XRangeOptionMenu mnuOption;
+  protected XValueField<T> xvfLow;
+  protected Label labTo;
+  protected XValueField<T> xvfHigh;
+  protected Button btnMultiple;
   private XRangeItem<T> bounding;
   private ListChangeListener<XRangeItem<T>> itemsHandler;
   private ChangeListener<XRangeSign> signHandler;
@@ -34,42 +37,47 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
     bindRangeControl();
   }
 
-  private void initChildren() {
-    getChildren().add(optionButton = new Button());
-    optionButton.setGraphic(new ImageView());
-    optionButton.setPadding(new Insets(3, 4, 4, 4));
-    optionButton.setOnAction(event -> showOptionMenu());
-    getChildren().add(lowField = new XValueField<>());
-    getChildren().add(toLabel = new Label());
-    toLabel.setText(XResource.getString("RANGE.TO"));
-    getChildren().add(highField = new XValueField<>());
-    getChildren().add(multipleButton = new Button());
-    multipleButton.setGraphic(new ImageView());
-    multipleButton.setPadding(new Insets(3, 4, 4, 4));
-    multipleButton.setOnAction(event -> showRangeEditor());
+  protected void initChildren() {
+    getChildren().add(btnOption = new Button());
+    btnOption.getStyleClass().add("option");
+    btnOption.setGraphic(new ImageView());
+    btnOption.setPadding(new Insets(3, 4, 4, 4));
+    btnOption.setOnAction(event -> showOptionMenu());
+    getChildren().add(xvfLow = new XValueField<>());
+    xvfLow.getStyleClass().add("low");
+    getChildren().add(labTo = new Label());
+    labTo.getStyleClass().add("to");
+    labTo.setText(XResource.getString("RANGE.TO"));
+    getChildren().add(xvfHigh = new XValueField<>());
+    xvfHigh.getStyleClass().add("high");
+    getChildren().add(btnMultiple = new Button());
+    btnMultiple.getStyleClass().add("multiple");
+    btnMultiple.setGraphic(new ImageView());
+    btnMultiple.setPadding(new Insets(3, 4, 4, 4));
+    btnMultiple.setOnAction(event -> showRangeEditor());
   }
 
   private void bindRangeControl() {
-    optionButton.disableProperty().bind(control.disabledProperty()
+    btnOption.disableProperty().bind(control.disabledProperty()
         .or(control.editableProperty().not()));
-    lowField.editableProperty().bind(control.editableProperty());
-    lowField.disableProperty().bind(control.disabledProperty());
-    highField.editableProperty().bind(control.editableProperty());
-    highField.disableProperty().bind(control.disabledProperty());
-    multipleButton.disableProperty().bind(control.disabledProperty());
-    lowField.formatterProperty().bind(control.formatterProperty());
-    lowField.providerProperty().bind(control.providerProperty());
-    lowField.prefColumnCountProperty().bind(control.prefColumnCountProperty());
-    highField.prefColumnCountProperty().bind(control.prefColumnCountProperty());
+    xvfLow.editableProperty().bind(control.editableProperty());
+    xvfLow.disableProperty().bind(control.disabledProperty());
+    xvfHigh.editableProperty().bind(control.editableProperty());
+    xvfHigh.disableProperty().bind(control.disabledProperty());
+    btnMultiple.disableProperty().bind(control.disabledProperty());
+    xvfLow.formatterProperty().bind(control.formatterProperty());
+    xvfLow.providerProperty().bind(control.providerProperty());
+    xvfLow.prefColumnCountProperty().bind(control.prefColumnCountProperty());
+    xvfHigh.prefColumnCountProperty().bind(control.prefColumnCountProperty());
     if (control.getFormatter() != null)
-      highField.setFormatter(control.getFormatter().clone());
+      xvfHigh.setFormatter(control.getFormatter().clone());
     if (control.getProvider() != null)
-      highField.setProvider(control.getProvider().clone());
+      xvfHigh.setProvider(control.getProvider().clone());
     control.formatterProperty().addListener((v, o, n) -> {
-      highField.setFormatter(n == null ? null : n.clone());
+      xvfHigh.setFormatter(n == null ? null : n.clone());
     });
     control.providerProperty().addListener((v, o, n) -> {
-      highField.setProvider(n == null ? null : n.clone());
+      xvfHigh.setProvider(n == null ? null : n.clone());
     });
     control.itemsProperty().addListener(getItemsHandler());
     updateMultipleButton();
@@ -77,8 +85,12 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
       updateOptionButton();
     else
       bindRangeItem(control.itemsProperty().get(0));
-    lowField.valueProperty().addListener((v, o, n) -> handleLowChanged(n));
-    highField.valueProperty().addListener((v, o, n) -> handleHighChanged(n));
+    xvfLow.valueProperty().addListener((v, o, n) -> handleLowChanged(n));
+    xvfHigh.valueProperty().addListener((v, o, n) -> handleHighChanged(n));
+    control.intervalProperty().addListener((v, o, n) -> control.requestLayout());
+    control.multipleProperty().addListener((v, o, n) -> control.requestLayout());
+    handleFixedOption(control.getFixedOption());
+    control.fixedOptionProperty().addListener((v, o, n) -> handleFixedOption(n));
   }
 
   private ListChangeListener<XRangeItem<T>> getItemsHandler() {
@@ -96,31 +108,31 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
     if (bounding != null) {
       bounding.signProperty().removeListener(getSignHandler());
       bounding.optionProperty().removeListener(getOptionHandler());
-      lowField.valueProperty().unbindBidirectional(bounding.lowProperty());
-      highField.valueProperty().unbindBidirectional(bounding.highProperty());
+      xvfLow.valueProperty().unbindBidirectional(bounding.lowProperty());
+      xvfHigh.valueProperty().unbindBidirectional(bounding.highProperty());
     }
     bounding = range;
     updateOptionButton();
     if (bounding == null) {
-      lowField.setValue(null);
-      highField.setValue(null);
+      xvfLow.setValue(null);
+      xvfHigh.setValue(null);
     } else {
       bounding.signProperty().addListener(getSignHandler());
       bounding.optionProperty().addListener(getOptionHandler());
-      lowField.valueProperty().bindBidirectional(bounding.lowProperty());
-      highField.valueProperty().bindBidirectional(bounding.highProperty());
+      xvfLow.valueProperty().bindBidirectional(bounding.lowProperty());
+      xvfHigh.valueProperty().bindBidirectional(bounding.highProperty());
     }
   }
 
   private void updateOptionButton() {
-    ((ImageView) optionButton.getGraphic()).setImage(XRangeItem.getOptionImage(bounding));
+    ((ImageView) btnOption.getGraphic()).setImage(XRangeItem.getOptionImage(bounding));
   }
 
   private void updateMultipleButton() {
     Image icon = control.itemsProperty().size() > 1
         ? XImageLoader.get("MULT_MULT.png")
         : XImageLoader.get("MULT_NONE.png");
-    ((ImageView) multipleButton.getGraphic()).setImage(icon);
+    ((ImageView) btnMultiple.getGraphic()).setImage(icon);
   }
 
   private ChangeListener<XRangeSign> getSignHandler() {
@@ -138,6 +150,7 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
   private ChangeListener<XRangeOption> getOptionHandler() {
     if (optionHandler == null) {
       optionHandler = (v, o, n) -> {
+        fixedOption(bounding);
         if (bounding.isEmpty())
           control.getItems().remove(0);
         else
@@ -145,6 +158,13 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
       };
     }
     return optionHandler;
+  }
+
+  private void fixedOption(XRangeItem<T> range) {
+    XRangeOption fixed = control.getFixedOption();
+    if (fixed == null) return;
+    XRangeOption option = range.getOption();
+    if (option != fixed) range.setOption(fixed);
   }
 
   private void handleLowChanged(T value) {
@@ -157,12 +177,18 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
       control.itemsProperty().add(new XRangeItem<>((T) null, value));
   }
 
+  private void handleFixedOption(XRangeOption fixedOption) {
+    control.requestLayout();
+    btnOption.pseudoClassStateChanged(FIXED, fixedOption != null);
+  }
+
   private void showOptionMenu() {
-    if (optionMenu == null) {
-      optionMenu = new XRangeOptionMenu();
-      optionMenu.setOnAction(event -> handleOptionMenu(event));
+    if (control.getFixedOption() != null) return;
+    if (mnuOption == null) {
+      mnuOption = new XRangeOptionMenu();
+      mnuOption.setOnAction(event -> handleOptionMenu(event));
     }
-    optionMenu.show(optionButton, bounding);
+    mnuOption.show(btnOption, bounding);
   }
 
   private void handleOptionMenu(ActionEvent event) {
@@ -184,33 +210,50 @@ class XRangeFieldSkin<T extends Comparable<? super T>> extends SkinBase<XRangeFi
     editor.setFormatter(control.getFormatter());
     editor.setProvider(control.getProvider());
     editor.setEditable(control.isEditable());
+    editor.setInterval(control.isInterval());
+    editor.setFixedOption(control.getFixedOption());
     if (editor.show(control, null))
       control.setItems(editor.getRanges());
   }
 
   @Override
   protected void layoutChildren(double x, double y, double w, double h) {
-    layoutInArea(optionButton, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
-    x += optionButton.prefWidth(h) + 2;
-    layoutInArea(lowField, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
-    x += lowField.prefWidth(h) + 20;
-    layoutInArea(toLabel, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
-    x += toLabel.prefWidth(h) + 20;
-    layoutInArea(highField, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
-    x += highField.prefWidth(h) + 5;
-    layoutInArea(multipleButton, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+    layoutInArea(btnOption, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+    x += btnOption.prefWidth(h) + 2;
+    layoutInArea(xvfLow, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+    x += xvfLow.prefWidth(h);
+    boolean interval = isInterval();
+    labTo.setVisible(interval);
+    xvfHigh.setVisible(interval);
+    if (interval) {
+      x += 20;
+      layoutInArea(labTo, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+      x += labTo.prefWidth(h) + 20;
+      layoutInArea(xvfHigh, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+      x += xvfHigh.prefWidth(h);
+    }
+    btnMultiple.setVisible(control.isMultiple());
+    if (control.isMultiple()) {
+      x += 5;
+      layoutInArea(btnMultiple, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+    }
   }
 
   @Override
   protected double computePrefWidth(double h, double topInset, double rightInset,
       double bottomInset, double leftInset) {
-    return leftInset + rightInset + optionButton.prefWidth(h) + 2 + lowField.prefWidth(h) + 20
-        + toLabel.prefWidth(h) + 20 + highField.prefWidth(h) + 5 + multipleButton.prefWidth(h);
+    double width = leftInset + rightInset + btnOption.prefWidth(h) + 2 + xvfLow.prefWidth(h);
+    if (isInterval()) width += 20 + labTo.prefWidth(h) + 20 + xvfHigh.prefWidth(h);
+    return !control.isMultiple() ? width : width + 5 + btnMultiple.prefWidth(h);
+  }
+
+  private boolean isInterval() {
+    return control.getFixedOption() == null && control.isInterval();
   }
 
   @Override
   protected double computePrefHeight(double w, double topInset, double rightInset,
       double bottomInset, double leftInset) {
-    return topInset + bottomInset + Math.max(optionButton.prefHeight(-1), lowField.prefHeight(-1));
+    return topInset + bottomInset + Math.max(btnOption.prefHeight(-1), xvfLow.prefHeight(-1));
   }
 }

@@ -38,18 +38,18 @@ public class XObjectUtils {
 
   /**
    * Get attribute value of the object, the attribute should be field or getter method.
-   * returns null for null object
+   * returns null for null object or null attribute
    * 
    * @param object
    *          the entity
    * @param attribute
    *          the java member for the attribute
-   * @return attribute value of the entity
+   * @return attribute value of the object
    * @throws UnsupportedOperationException
    *           if get attribute value failed
    */
   public static Object getAttributeValue(Object object, Member attribute) {
-    if (object == null) return null;
+    if (object == null || attribute == null) return null;
     try {
       if (attribute instanceof Field) {
         ((Field) attribute).setAccessible(true);

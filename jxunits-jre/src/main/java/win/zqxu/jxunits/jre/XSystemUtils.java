@@ -116,7 +116,7 @@ public class XSystemUtils {
   private static List<File> listClassFiles(File folder) {
     List<File> files = new ArrayList<>();
     for (File file : folder.listFiles(f -> f.isDirectory()
-        || f.getName().matches("(?i)*.class"))) {
+        || f.getName().matches("[^$]*\\.class"))) {
       if (file.isFile())
         files.add(file);
       else

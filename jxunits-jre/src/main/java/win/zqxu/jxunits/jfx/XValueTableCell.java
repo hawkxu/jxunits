@@ -1,7 +1,8 @@
 package win.zqxu.jxunits.jfx;
 
-import javafx.scene.control.TextField;
+import javafx.application.Platform;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.input.KeyCode;
 
 /**
  * Represents table cell support using XPatternFormatter to format cell data and restrict
@@ -9,8 +10,8 @@ import javafx.scene.control.TextFormatter;
  * 
  * @author zqxu
  */
-public class XValueTableCell<S, T> extends XAbstractTextTableCell<S, T> {
-  private XValueField<T> field;
+public class XValueTableCell<S, T> extends XAbstractTableCell<S, T, XValueField<T>> {
+  private XValueField<T> editor;
 
   /**
    * Constructor XValueTableCell with formatter
@@ -45,44 +46,44 @@ public class XValueTableCell<S, T> extends XAbstractTextTableCell<S, T> {
   }
 
   /**
-   * Constructor XValueTableCell with value field
+   * Constructor XValueTableCell with value field editor
    * 
-   * @param field
-   *          the value field
+   * @param editor
+   *          the value field editor
    */
-  public XValueTableCell(XValueField<T> field) {
+  public XValueTableCell(XValueField<T> editor) {
     super();
-    this.field = field;
-  }
-
-  /**
-   * Get value field used by this table cell
-   * 
-   * @return value field
-   */
-  public XValueField<T> getValueField() {
-    return field;
+    this.editor = editor;
+    this.getStyleClass().add("x-value-table-cell");
   }
 
   @Override
-  protected TextField getTextField() {
-    return field;
+  protected XValueField<T> createEditor() {
+    editor.setOnKeyReleased(evt -> {
+      if (evt.getCode() == KeyCode.ESCAPE) {
+        cancelEdit();
+        evt.consume();
+      }
+    });
+    editor.setOnAction(evt -> {
+      editor.commitValue();
+      commitEdit(editor.getValue());
+      evt.consume();
+    });
+    editor.focusedProperty().addListener((v, o, n) -> {
+      if (!n) commitWhenLostFocus(editor.getValue());
+    });
+    Platform.runLater(() -> editor.selectAll());
+    return editor;
   }
 
   @Override
-  public void startEdit() {
-    super.startEdit();
-    field.setValue(getItem());
+  protected void updateEditor(T item) {
+    editor.setValue(item);
   }
 
   @Override
-  protected String getCellText() {
-    return field.convertToString(getItem());
-  }
-
-  @Override
-  protected T getEditValue() {
-    field.commitValue();
-    return field.getValue();
+  protected String getItemText(T item) {
+    return editor.convertToString(item);
   }
 }

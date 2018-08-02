@@ -14,6 +14,6 @@ import java.lang.annotation.Target;
  */
 @Retention(SOURCE)
 @Target(TYPE)
-public @interface TagBuilder {
-  ContentType content() default ContentType.empty;
+public @interface XTagClass {
+  XTagContent content() default XTagContent.empty;
 }

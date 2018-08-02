@@ -1,0 +1,155 @@
+<html>
+<head>
+<title></title>
+<style type="text/css">
+table {
+  border: solid 1px;
+  border-collapse: collapse;
+  border-spacing: 0px;
+}
+
+td {
+  border: solid 1px;
+  padding-left: 5px;
+  padding-right: 10px;
+}
+</style>
+</head>
+<body>
+  <p>
+    Access the JNLP deploy servlet through URL http://host.domain/context_path/servlet_path/URI,
+    available URIs described below, replace the <b>project</b> with actual project name
+  </p>
+  <p>The parameter followed (?) means optional</p>
+  <table>
+    <tr>
+      <td>URI</td>
+      <td>Method</td>
+      <td>Parameter</td>
+      <td>Response</td>
+      <td>Description</td>
+    </tr>
+    <tr>
+      <td>/</td>
+      <td>GET</td>
+      <td></td>
+      <td>HTML</td>
+      <td>Home page</td>
+    </tr>
+    <tr>
+      <td>/_list</td>
+      <td>GET</td>
+      <td></td>
+      <td>JSON: project list</td>
+      <td>Get deployed projects</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/
+      </td>
+      <td>GET</td>
+      <td></td>
+      <td>HTML</td>
+      <td>Deployment page for the project</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/_start
+      </td>
+      <td rowspan="3">POST</td>
+      <td>header: forceDeploy (?)</td>
+      <td>deploy task number(?)</td>
+      <td>Start project deploy</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/_finish
+      </td>
+      <td>header: deployTask</td>
+      <td>null</td>
+      <td>Finish project deploy</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/_cancel
+      </td>
+      <td>header: deployTask</td>
+      <td>null</td>
+      <td>Cancel project deploy</td>
+    </tr>
+    <tr>
+      <td rowspan="2">/deploy/<b>project</b>/_project
+      </td>
+      <td>GET</td>
+      <td>header: deployTask (?)</td>
+      <td>JSON: project</td>
+      <td>Get project</td>
+    </tr>
+    <tr>
+      <td>POST</td>
+      <td>header: deployTask<br>content: JSON<br>&nbsp;&nbsp;{project, jnlpContent}
+      </td>
+      <td>JSON: project</td>
+      <td>Update project</td>
+    </tr>
+    <tr>
+      <td rowspan="2">/deploy/<b>project</b>/_icons
+      </td>
+      <td>GET</td>
+      <td>header: deployTask (?)</td>
+      <td>JSON: icons</td>
+      <td>Get project icons</td>
+    </tr>
+    <tr>
+      <td>POST</td>
+      <td>header: deployTask<br>content: JSON<br>&nbsp;&nbsp;{kind, iconContent}
+      </td>
+      <td>null</td>
+      <td>Update project icon</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/_libs
+      </td>
+      <td>GET</td>
+      <td>header: deployTask</td>
+      <td>JSON</td>
+      <td>Get libraries of the project</td>
+    </tr>
+    <tr>
+      <td>/deploy/<b>project</b>/_lib
+      </td>
+      <td>POST</td>
+      <td>header: deployTask<br>content: JSON<br>&nbsp;&nbsp;{library, jarContent}
+      </td>
+      <td>JSON: library</td>
+      <td>Update library</td>
+    </tr>
+    <tr>
+      <td>/<b>project</b>/
+      </td>
+      <td rowspan="2">GET</td>
+      <td rowspan="2"></td>
+      <td rowspan="2">project jnlp file</td>
+      <td rowspan="2">The two URIs has same effect<br>Note: the jnlp file name does not
+        include version number
+      </td>
+    </tr>
+    <tr>
+      <td>/<b>project</b>/<b>project</b>.jnlp
+      </td>
+    </tr>
+    <tr>
+      <td>/<b>project</b>/_modules
+      </td>
+      <td>GET</td>
+      <td></td>
+      <td>JSON: modules</td>
+      <td>Get modules in the project</td>
+    </tr>
+    <tr>
+      <td>/<b>project</b>/path_to/jar_file
+      </td>
+      <td>GET</td>
+      <td></td>
+      <td>jar file</td>
+      <td>Get jar file of the project</td>
+    </tr>
+  </table>
+</body>
+</html>

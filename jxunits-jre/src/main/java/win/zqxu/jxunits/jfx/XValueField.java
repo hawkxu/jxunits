@@ -64,7 +64,7 @@ public class XValueField<T> extends TextField {
    * 
    * @return formatter
    */
-  public TextFormatter<T> getFormatter() {
+  public final TextFormatter<T> getFormatter() {
     return formatterProperty().get();
   }
 
@@ -74,7 +74,7 @@ public class XValueField<T> extends TextField {
    * @param formatter
    *          formatter
    */
-  public void setFormatter(TextFormatter<T> formatter) {
+  public final void setFormatter(TextFormatter<T> formatter) {
     formatterProperty().set(formatter);
   }
 
@@ -83,7 +83,7 @@ public class XValueField<T> extends TextField {
    * 
    * @return provider property
    */
-  public ObjectProperty<XValueProvider<T>> providerProperty() {
+  public final ObjectProperty<XValueProvider<T>> providerProperty() {
     return provider;
   }
 
@@ -92,7 +92,7 @@ public class XValueField<T> extends TextField {
    * 
    * @return provider
    */
-  public XValueProvider<T> getProvider() {
+  public final XValueProvider<T> getProvider() {
     return providerProperty().get();
   }
 
@@ -102,7 +102,7 @@ public class XValueField<T> extends TextField {
    * @param provider
    *          provider
    */
-  public void setProvider(XValueProvider<T> provider) {
+  public final void setProvider(XValueProvider<T> provider) {
     providerProperty().set(provider);
   }
 
@@ -120,7 +120,7 @@ public class XValueField<T> extends TextField {
    * 
    * @return value
    */
-  public T getValue() {
+  public final T getValue() {
     return valueProperty().get();
   }
 
@@ -130,7 +130,7 @@ public class XValueField<T> extends TextField {
    * @param value
    *          value
    */
-  public void setValue(T value) {
+  public final void setValue(T value) {
     valueProperty().set(value);
   }
 
@@ -232,6 +232,6 @@ public class XValueField<T> extends TextField {
 
   @Override
   public String getUserAgentStylesheet() {
-    return getClass().getResource("x-value-field.css").toExternalForm();
+    return XValueField.class.getResource("x-styles.css").toExternalForm();
   }
 }

@@ -17,7 +17,7 @@ import javax.servlet.http.HttpServletResponse;
  * 
  * @author zqxu
  */
-public class BlockAccessFilter implements Filter {
+public class XBlockAccessFilter implements Filter {
   private int blockedCode;
   private String blockedPage;
 

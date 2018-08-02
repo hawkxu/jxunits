@@ -602,6 +602,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
     return new XPatternFormatter<>(XDateTimeConverter.DATETIME(format), pattern);
   }
 
+  private V defaultValue;
+
   /**
    * Constructor with value converter and pattern
    * 
@@ -661,6 +663,7 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   public XPatternFormatter(StringConverter<V> valueConverter, String pattern,
       CharCase charCase, V defaultValue) throws PatternSyntaxException {
     super(valueConverter, defaultValue, new PatternFilter(pattern, charCase));
+    this.defaultValue = defaultValue;
   }
 
   /**
@@ -682,6 +685,15 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * get default value
+   * 
+   * @return default value
+   */
+  public V getDefaultValue() {
+    return defaultValue;
+  }
+
+  /**
    * apply formatter to string, get formatted string
    * 
    * @param string
@@ -694,11 +706,12 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
-   * Clone this pattern formatter with default value set null.
+   * Clone this pattern formatter
    */
   @Override
   public XPatternFormatter<V> clone() {
-    return new XPatternFormatter<>(getValueConverter(), getPattern(), getCharCase(), null);
+    return new XPatternFormatter<>(getValueConverter(), getPattern(),
+        getCharCase(), getDefaultValue());
   }
 
   private static class PatternFilter implements UnaryOperator<Change> {
@@ -827,19 +840,46 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
 
     private Change applyPatterns(Change change) {
       if (patterns.length == 0) return change;
-      String text = change.getControlNewText();
-      if (text.isEmpty()) return change;
-      int length = text.length();
-      String result = applyPatterns(text);
-      int distance = result.length() - length;
-      int textLength = change.getText().length();
+      String newText = change.getControlNewText();
+      if (newText.isEmpty()) return change;
+      String oldText = change.getControlText();
+      if (newText.equals(oldText)) return change;
+      int newLength = newText.length();
+      int oldLength = oldText.length();
+      String result = applyPatterns(newText);
+      if (result.equals(newText)) return change;
+      int distance = result.length() - newLength;
       int start = change.getRangeStart();
-      int end = start + textLength + distance;
-      change.setText(result.substring(start, end));
-      int anchor = change.getAnchor();
-      change.setAnchor(anchor + distance);
-      int caret = change.getCaretPosition();
-      change.setCaretPosition(caret + distance);
+      int end = change.getRangeEnd();
+      int changedLength = change.getText().length();
+      int close = start + changedLength + distance;
+      if (!result.equals(newText) && end != oldLength) {
+        close = -1; // reject partial match at middle
+      }
+      String text = ""; // prevent update
+      if (close >= start) {
+        text = result.substring(start, close);
+      } else if (change.isDeleted()) {
+        // prevent delete
+        text = oldText.substring(start, end);
+      }
+      change.setText(text);
+      int anchor = change.getControlAnchor();
+      int caret = change.getControlCaretPosition();
+      if (change.isReplaced()) {
+        if (anchor == caret)
+          distance = 0; // deletion prevented
+        else
+          distance = text.length();
+        anchor = Math.min(anchor, caret);
+      } else if (change.isDeleted()) {
+        distance = 0;
+        anchor = Math.min(anchor, caret);
+      } else {
+        distance = end - start + text.length();
+      }
+      anchor += distance;
+      change.selectRange(anchor, anchor);
       return change;
     }
 
@@ -863,20 +903,27 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
         if (m.find()) {
           result.append(m.group());
           parser.delete(0, m.end());
-        } else if (isLastPartial(p, parser)) {
+        } else if (partialMatch(p, parser)) {
           result.append(parser);
-          parser.delete(0, parser.length());
+          break; // partial match
         } else {
           char c = getSingleChar(p);
-          if (c == 0) return "";
+          if (c == 0) break; // partial match
           result.append(c);
         }
       }
       return result.toString();
     }
 
-    private boolean isLastPartial(Pattern pattern, StringBuilder text) {
-      return text.toString().matches(pattern.toString().replaceAll("\\{.*?(\\d+)\\}", "{1,$1}"));
+    private boolean partialMatch(Pattern pattern, StringBuilder text) {
+      String o = pattern.toString();
+      String p = o.replaceAll("\\{.*?(\\d+)\\}", "{1,$1}");
+      if (p.equals(o)) return false;
+      Matcher m = Pattern.compile(p).matcher(text);
+      if (!m.find()) return false;
+      String result = m.group();
+      text.delete(0, text.length()).append(result);
+      return true;
     }
 
     private char getSingleChar(Pattern pattern) {

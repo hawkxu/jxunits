@@ -39,6 +39,8 @@ public class XRangeEditor<T extends Comparable<? super T>> {
   private XPatternFormatter<T> formatter;
   private XValueProvider<T> provider;
   private boolean editable = true;
+  private boolean interval = true;
+  private XRangeOption fixedOption;
   private DialogPane dialogPane;
   private Node[] buttons;
   private TabPane tabPane;
@@ -114,7 +116,7 @@ public class XRangeEditor<T extends Comparable<? super T>> {
   }
 
   /**
-   * range editor is edit able, default is true
+   * range editor is editable, default is true
    * 
    * @return true or false
    */
@@ -123,13 +125,51 @@ public class XRangeEditor<T extends Comparable<? super T>> {
   }
 
   /**
-   * range editor is edit able, default is true
+   * range editor is editable, default is true
    * 
    * @param editable
    *          true or false
    */
   public void setEditable(boolean editable) {
     this.editable = editable;
+  }
+
+  /**
+   * interval allowed, default is true
+   * 
+   * @return true or false
+   */
+  public boolean isInterval() {
+    return interval;
+  }
+
+  /**
+   * interval allowed, default is true
+   * 
+   * @param interval
+   *          true or false
+   */
+  public void setInterval(boolean interval) {
+    this.interval = interval;
+  }
+
+  /**
+   * fixed option, default is null
+   * 
+   * @return fixed option
+   */
+  public XRangeOption getFixedOption() {
+    return fixedOption;
+  }
+
+  /**
+   * fixed option, default is null
+   * 
+   * @param fixedOption
+   *          the fixed option
+   */
+  public void setFixedOption(XRangeOption fixedOption) {
+    this.fixedOption = fixedOption;
   }
 
   /**
@@ -196,7 +236,9 @@ public class XRangeEditor<T extends Comparable<? super T>> {
     table.getColumns().clear();
     table.getColumns().add(createOptionColumn());
     table.getColumns().add(createValueColumn("low"));
-    table.getColumns().add(createValueColumn("high"));
+    if (isInterval2()) {
+      table.getColumns().add(createValueColumn("high"));
+    }
     table.getItems().clear();
     if (ranges == null || ranges.isEmpty()) return;
     for (XRangeItem<T> range : ranges)
@@ -220,6 +262,7 @@ public class XRangeEditor<T extends Comparable<? super T>> {
   private TableColumn<XRangeItem<T>, ?> createOptionColumn() {
     TableColumn<XRangeItem<T>, XRangeOption> column;
     column = createColumn("option");
+    column.setEditable(fixedOption == null);
     column.setCellFactory(c -> new XRangeOptionTableCell<>());
     return column;
   }
@@ -302,7 +345,9 @@ public class XRangeEditor<T extends Comparable<? super T>> {
   private void doAdd() {
     TableView<XRangeItem<T>> table = getActiveTable();
     XRangeSign sign = table == includeTable ? XRangeSign.I : XRangeSign.E;
-    table.getItems().add(new XRangeItem<>(sign, XRangeOption.EQ, null, null));
+    XRangeOption option = fixedOption;
+    if (option == null) option = XRangeOption.EQ;
+    table.getItems().add(new XRangeItem<>(sign, option, null, null));
   }
 
   private void doDelete() {
@@ -330,12 +375,13 @@ public class XRangeEditor<T extends Comparable<? super T>> {
           parts[0] = parts[0].trim();
           parts[0] = formatter.apply(parts[0]);
           low = converter.fromString(parts[0]);
-          if (parts.length > 1 && !parts[1].isEmpty()) {
+          if (isInterval2() && parts.length > 1 && !parts[1].isEmpty()) {
             parts[1] = parts[1].trim();
             parts[1] = formatter.apply(parts[1]);
             high = converter.fromString(parts[1]);
           }
-          XRangeItem<T> range = new XRangeItem<>(sign, null, low, high);
+          XRangeOption option = fixedOption;
+          XRangeItem<T> range = new XRangeItem<>(sign, option, low, high);
           if (!range.isEmpty()) table.getItems().add(range);
         } catch (Exception ex) {
           // safely ignored any exception
@@ -345,6 +391,10 @@ public class XRangeEditor<T extends Comparable<? super T>> {
     } catch (Exception ex) {
       // safely ignored any exception
     }
+  }
+
+  private boolean isInterval2() {
+    return interval && fixedOption == null;
   }
 
   private void doClear() {
@@ -375,7 +425,7 @@ public class XRangeEditor<T extends Comparable<? super T>> {
     }
 
     private void handleMouseClicked(MouseEvent event) {
-      if (!getTableView().isEditable()) return;
+      if (!isColumnEditable()) return;
       if (event.getButton().equals(MouseButton.PRIMARY)) {
         XRangeItem<T> range = getRange();
         if (range == null) return;
@@ -385,6 +435,10 @@ public class XRangeEditor<T extends Comparable<? super T>> {
         }
         optionMenu.show(optionImage, range);
       }
+    }
+
+    private boolean isColumnEditable() {
+      return getTableView().isEditable() && getTableColumn().isEditable();
     }
 
     private void handleOptionMenu(ActionEvent event) {

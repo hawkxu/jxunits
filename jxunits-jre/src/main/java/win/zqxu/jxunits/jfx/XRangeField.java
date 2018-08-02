@@ -1,9 +1,12 @@
 package win.zqxu.jxunits.jfx;
 
+import java.security.InvalidParameterException;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ObjectPropertyBase;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
@@ -20,6 +23,9 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
   private BooleanProperty autoTrim = new SimpleBooleanProperty();
   private ObjectProperty<XValueProvider<T>> provider = new SimpleObjectProperty<>();
   private IntegerProperty prefColumnCount = new SimpleIntegerProperty(12);
+  private BooleanProperty interval = new SimpleBooleanProperty(true);
+  private BooleanProperty multiple = new SimpleBooleanProperty(true);
+  private ObjectProperty<XRangeOption> fixedOption;
 
   public XRangeField() {
     this(null, null);
@@ -34,6 +40,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
   }
 
   public XRangeField(XPatternFormatter<T> formatter, XValueProvider<T> provider) {
+    getStyleClass().add("x-range-field");
     setFormatter(formatter);
     setProvider(provider);
     setEditable(true);
@@ -55,7 +62,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return true or false
    */
-  public boolean isEditable() {
+  public final boolean isEditable() {
     return editableProperty().get();
   }
 
@@ -65,7 +72,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param editable
    *          true or false
    */
-  public void setEditable(boolean editable) {
+  public final void setEditable(boolean editable) {
     editableProperty().set(editable);
   }
 
@@ -83,7 +90,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return formatter
    */
-  public XPatternFormatter<T> getFormatter() {
+  public final XPatternFormatter<T> getFormatter() {
     return formatterProperty().get();
   }
 
@@ -93,7 +100,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param formatter
    *          the formatter
    */
-  public void setFormatter(XPatternFormatter<T> formatter) {
+  public final void setFormatter(XPatternFormatter<T> formatter) {
     formatterProperty().set(formatter);
   }
 
@@ -111,7 +118,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return items
    */
-  public ObservableList<XRangeItem<T>> getItems() {
+  public final ObservableList<XRangeItem<T>> getItems() {
     return itemsProperty().get();
   }
 
@@ -121,7 +128,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param items
    *          the items
    */
-  public void setItems(ObservableList<XRangeItem<T>> items) {
+  public final void setItems(ObservableList<XRangeItem<T>> items) {
     itemsProperty().set(items);
   }
 
@@ -139,7 +146,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return true or false
    */
-  public boolean isAutoTrim() {
+  public final boolean isAutoTrim() {
     return autoTrimProperty().get();
   }
 
@@ -149,7 +156,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param autoTrim
    *          true or false
    */
-  public void setAutoTrim(boolean autoTrim) {
+  public final void setAutoTrim(boolean autoTrim) {
     autoTrimProperty().set(autoTrim);
   }
 
@@ -167,7 +174,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return provider
    */
-  public XValueProvider<T> getProvider() {
+  public final XValueProvider<T> getProvider() {
     return providerProperty().get();
   }
 
@@ -177,7 +184,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param provider
    *          the value provider
    */
-  public void setProvider(XValueProvider<T> provider) {
+  public final void setProvider(XValueProvider<T> provider) {
     providerProperty().set(provider);
   }
 
@@ -195,7 +202,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * 
    * @return preferred column count
    */
-  public int getPrefColumnCount() {
+  public final int getPrefColumnCount() {
     return prefColumnCountProperty().get();
   }
 
@@ -205,8 +212,112 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    * @param prefColumnCount
    *          preferred column count
    */
-  public void setPrefColumnCount(int prefColumnCount) {
+  public final void setPrefColumnCount(int prefColumnCount) {
     prefColumnCountProperty().set(prefColumnCount);
+  }
+
+  /**
+   * interval property
+   * 
+   * @return interval property
+   */
+  public final BooleanProperty intervalProperty() {
+    return interval;
+  }
+
+  /**
+   * Determine whether interval allowed
+   * 
+   * @return true or false
+   */
+  public final boolean isInterval() {
+    return intervalProperty().get();
+  }
+
+  /**
+   * Set whether interval allowed
+   * 
+   * @param interval
+   *          true or false
+   */
+  public final void setInterval(boolean interval) {
+    intervalProperty().set(interval);
+  }
+
+  /**
+   * multiple property
+   * 
+   * @return multiple property
+   */
+  public final BooleanProperty multipleProperty() {
+    return multiple;
+  }
+
+  /**
+   * Determine whether multiple ranges allowed
+   * 
+   * @return true or false
+   */
+  public final boolean isMultiple() {
+    return multipleProperty().get();
+  }
+
+  /**
+   * Set whether multiple ranges allowed
+   * 
+   * @param multiple
+   *          true or false
+   */
+  public final void setMultiple(boolean multiple) {
+    multipleProperty().set(multiple);
+  }
+
+  /**
+   * fixed option property
+   * 
+   * @return fixed option property
+   */
+  public final ObjectProperty<XRangeOption> fixedOptionProperty() {
+    if (fixedOption == null) {
+      fixedOption = new ObjectPropertyBase<XRangeOption>() {
+        @Override
+        public Object getBean() {
+          return XRangeField.this;
+        }
+
+        @Override
+        public String getName() {
+          return "fixedOption";
+        }
+
+        @Override
+        public void set(XRangeOption newValue) {
+          if (newValue == XRangeOption.BT || newValue == XRangeOption.NB)
+            throw new InvalidParameterException("BT and NB are not allowed here");
+          super.set(newValue);
+        }
+      };
+    }
+    return fixedOption;
+  }
+
+  /**
+   * Get fixed option, default is null
+   * 
+   * @return fixed option
+   */
+  public final XRangeOption getFixedOption() {
+    return fixedOptionProperty().get();
+  }
+
+  /**
+   * Set fixed option, default is null
+   * 
+   * @param fixedOption
+   *          the fixed option
+   */
+  public final void setFixedOption(XRangeOption fixedOption) {
+    fixedOptionProperty().set(fixedOption);
   }
 
   /**
@@ -234,5 +345,10 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
   @Override
   protected Skin<?> createDefaultSkin() {
     return new XRangeFieldSkin<>(this);
+  }
+
+  @Override
+  public String getUserAgentStylesheet() {
+    return XRangeField.class.getResource("x-styles.css").toExternalForm();
   }
 }

@@ -13,10 +13,18 @@ import java.lang.annotation.Target;
  */
 @Retention(SOURCE)
 @Target(METHOD)
-public @interface AttrBuilder {
-  /** Whether the attribute is required */
+public @interface XTagAttribute {
+  /**
+   * Whether the attribute is required, default is false
+   * 
+   * @return true if the attribute is required, otherwise false
+   */
   boolean required() default false;
 
-  /** Whether the attribute is ignored */
+  /**
+   * Whether the attribute will be ignored, default is false
+   * 
+   * @return true for ignore the attribute, otherwise false
+   */
   boolean ignored() default false;
 }

@@ -1,0 +1,16 @@
+.x-value-field:provider-visible {
+  -fx-padding: 0.333333em 0 0.333333em 0.583em;
+}
+
+.x-value-field:provider-visible .provider {
+  -fx-padding: 0 3 0 3;
+}
+
+.x-range-field .option:fixed {
+ -fx-background-color: transparent;
+}
+
+.x-value-table-cell {
+  -fx-padding: 0 3 0 3;
+  -fx-alignment: center-left;
+}
