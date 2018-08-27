@@ -5,7 +5,7 @@
   <parent>
     <groupId>win.zqxu</groupId>
     <artifactId>jxunits</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
   </parent>
   <groupId>win.zqxu.jxunits</groupId>
   <artifactId>jxunits-tag</artifactId>

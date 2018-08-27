@@ -210,6 +210,38 @@ public class XRangeItem<T extends Comparable<? super T>> {
     return new XRangeItem<>(getSign(), getOption(), getLow(), getHigh());
   }
 
+  @Override
+  public int hashCode() {
+    return 61 + Objects.hashCode(getSign()) + Objects.hashCode(getOption())
+        + Objects.hashCode(getLow()) + Objects.hashCode(getHigh());
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof XRangeItem)) return false;
+    XRangeItem<?> x2 = (XRangeItem<?>) obj;
+    return Objects.equals(getSign(), x2.getSign())
+        && Objects.equals(getOption(), x2.getOption())
+        && Objects.equals(getLow(), x2.getLow())
+        && Objects.equals(getHigh(), x2.getHigh());
+  }
+
+  @Override
+  public String toString() {
+    if (isEmpty()) return "";
+    StringBuilder builder = new StringBuilder(getSign().name());
+    builder.append(" ").append(getOption()).append(" ").append(getLow());
+    T high = getHigh();
+    if (high != null) builder.append(" AND ").append(valueToString(high));
+    return builder.toString();
+  }
+
+  private String valueToString(Object value) {
+    if (value == null) return "null";
+    if (value instanceof Number) return value.toString();
+    return "'" + value + "'";
+  }
+
   /**
    * Get option image for range
    * 
