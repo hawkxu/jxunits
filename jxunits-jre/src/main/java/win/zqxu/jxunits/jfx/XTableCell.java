@@ -10,10 +10,10 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn.CellEditEvent;
 
-public abstract class XAbstractTableCell<S, T, R extends Node> extends TableCell<S, T> {
-  private R editor;
+public abstract class XTableCell<S, T> extends TableCell<S, T> {
+  private Node editor;
 
-  public XAbstractTableCell() {
+  public XTableCell() {
     this.getStyleClass().add("x-table-cell");
   }
 
@@ -26,6 +26,7 @@ public abstract class XAbstractTableCell<S, T, R extends Node> extends TableCell
     if (!isEditing()) return;
     if (editor == null)
       editor = createEditor();
+    if (editor == null) return;
     setText(null);
     setGraphic(editor);
     updateEditor(getItem());
@@ -65,19 +66,23 @@ public abstract class XAbstractTableCell<S, T, R extends Node> extends TableCell
 
   /**
    * create editor for the cell, the implemented class should add listener to invoke
-   * commitEdit and cancelEdit here. this method will be called only once
+   * commitEdit and cancelEdit here. this method will be called only once. default returns
+   * null.
    * 
    * @return created editor
    */
-  protected abstract R createEditor();
+  protected Node createEditor() {
+    return null;
+  }
 
   /**
-   * update editor value with cell item
+   * update editor value with cell item. default do nothing
    * 
    * @param item
    *          the cell item
    */
-  protected abstract void updateEditor(T item);
+  protected void updateEditor(T item) {
+  }
 
   /**
    * get display text for the cell item, the implemented class should overwrite this
@@ -113,6 +118,6 @@ public abstract class XAbstractTableCell<S, T, R extends Node> extends TableCell
 
   @Override
   public String getUserAgentStylesheet() {
-    return XAbstractTableCell.class.getResource("x-styles.css").toExternalForm();
+    return XTableCell.class.getResource("x-styles.css").toExternalForm();
   }
 }

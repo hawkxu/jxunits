@@ -10,7 +10,7 @@ import javafx.scene.input.KeyCode;
  * 
  * @author zqxu
  */
-public class XValueTableCell<S, T> extends XAbstractTableCell<S, T, XValueField<T>> {
+public class XValueTableCell<S, T> extends XTableCell<S, T> {
   private XValueField<T> editor;
 
   /**
