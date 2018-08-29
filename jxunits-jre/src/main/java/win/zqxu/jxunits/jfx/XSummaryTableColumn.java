@@ -76,7 +76,7 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
       if (predicate == null)
         columnPredicate.set(null);
       else
-        columnPredicate.set(item -> predicate.test(getSourceCellData(item)));
+        columnPredicate.set(item -> predicate.test(getSourceObservableValue(item).getValue()));
     }
   };
 
@@ -163,10 +163,10 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
         XSummaryTableView<S> st = (XSummaryTableView<S>) table;
         if (item.isSummary()) {
           if (st.getSortOrder().contains(cdf.getTableColumn())) {
-            return new ReadOnlyObjectWrapper<>(item.getSummaryValue(getOrder()));
+            return item.getSummaryValue(getOrder());
           }
           if (st.getSummers().contains(cdf.getTableColumn()))
-            return new ReadOnlyObjectWrapper<>(item.getSummaryValue(getSummer()));
+            return item.getSummaryValue(getSummer());
           return null;
         }
         Callback<XSummaryDataFeatures<S, T>, ObservableValue<T>> svf = getSourceValueFactory();
@@ -210,10 +210,9 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     this.sourceValueFactory.set(sourceValueFactory);
   }
 
-  public final T getSourceCellData(S item) {
+  public final ObservableValue<T> getSourceObservableValue(S item) {
     Callback<XSummaryDataFeatures<S, T>, ObservableValue<T>> svf = getSourceValueFactory();
-    if (svf == null) return null;
-    return svf.call(new XSummaryDataFeatures<>(getTableView(), this, item)).getValue();
+    return svf == null ? null : svf.call(new XSummaryDataFeatures<>(getTableView(), this, item));
   }
 
   public static class XSummaryDataFeatures<S, T> {
@@ -282,13 +281,13 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
       return column.getSortType();
     }
 
-    @Override
-    public final T getOrderValue(S item) {
-      return column.getSourceCellData(item);
-    }
-
     public final boolean isSubtotalGroup() {
       return column.isSubtotalGroup();
+    }
+
+    @Override
+    public ObservableValue<T> getObservableValue(S item) {
+      return column.getSourceObservableValue(item);
     }
   }
 
@@ -300,25 +299,27 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     }
 
     @Override
-    public final T sum(T summing, S item) {
-      return doSummer(summing, 1, item);
+    public ObservableValue<T> getObservableValue(S item) {
+      return column.getSourceObservableValue(item);
     }
 
     @Override
-    public final T subtract(T summing, S item) {
-      return doSummer(summing, -1, item);
+    public final T sum(T summing, T value) {
+      return doSummer(summing, 1, value);
+    }
+
+    @Override
+    public final T subtract(T summing, T value) {
+      return doSummer(summing, -1, value);
     }
 
     @SuppressWarnings("unchecked")
-    protected T doSummer(T summing, int sign, S item) {
-      if (item == null) return summing;
-      T value = column.getSourceCellData(item);
-      if (!(value instanceof Number))
-        return summing;
-      if (!(summing instanceof Number))
-        return value;
+    protected T doSummer(T summing, int sign, T value) {
+      if (!(value instanceof Number)) return summing;
+      Number operand = signed(sign, value);
+      if (operand == null) return summing;
+      if (summing == null) return (T) operand;
       Number result = (Number) summing;
-      Number operand = (Number) value;
       Class<?> type = result.getClass();
       if (type == BigInteger.class)
         return (T) doAddBigInteger(result, operand);
@@ -337,19 +338,43 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
         return (T) Float.valueOf((float) summed);
       if (type == Double.class)
         return (T) Double.valueOf(summed);
-      return null;
+      return null; // unsupported type
+    }
+
+    private Number signed(int sign, T value) {
+      if (!(value instanceof Number)) return null;
+      Number number = (Number) value;
+      if (sign >= 0) return number;
+      Class<?> type = number.getClass();
+      if (type == BigInteger.class)
+        return ((BigInteger) number).negate();
+      if (type == BigDecimal.class)
+        return ((BigDecimal) number).negate();
+      if (type == Byte.class)
+        return Byte.valueOf((byte) -number.byteValue());
+      if (type == Short.class)
+        return Short.valueOf((short) -number.shortValue());
+      if (type == Integer.class)
+        return Integer.valueOf(-number.intValue());
+      if (type == Long.class)
+        return Long.valueOf(-number.longValue());
+      if (type == Float.class)
+        return Float.valueOf(-number.floatValue());
+      if (type == Double.class)
+        return Double.valueOf(-number.doubleValue());
+      return null; // unsupported type
     }
 
     private BigInteger doAddBigInteger(Number summing, Number operand) {
-      if (operand instanceof BigInteger)
-        return ((BigInteger) summing).add((BigInteger) operand);
-      return ((BigInteger) summing).add(BigInteger.valueOf(operand.longValue()));
+      BigInteger result = (BigInteger) summing;
+      if (operand instanceof BigInteger) return result.add((BigInteger) operand);
+      return result.add(BigInteger.valueOf(operand.longValue()));
     }
 
     private BigDecimal doAddBigDecimal(Number summing, Number operand) {
-      if (operand instanceof BigDecimal)
-        return ((BigDecimal) summing).add((BigDecimal) operand);
-      return ((BigDecimal) summing).add(BigDecimal.valueOf(operand.doubleValue()));
+      BigDecimal result = (BigDecimal) summing;
+      if (operand instanceof BigDecimal) return result.add((BigDecimal) operand);
+      return result.add(BigDecimal.valueOf(operand.doubleValue()));
     }
 
     private double doAddDouble(Number result, Number operand) {

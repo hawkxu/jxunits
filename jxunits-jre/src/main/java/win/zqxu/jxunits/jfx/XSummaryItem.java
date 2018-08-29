@@ -1,5 +1,6 @@
 package win.zqxu.jxunits.jfx;
 
+import javafx.beans.value.ObservableValue;
 import win.zqxu.jxunits.jfx.XSummaryComber.XSummaryOrder;
 import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
 
@@ -47,7 +48,7 @@ public interface XSummaryItem<S> {
    *          the order
    * @return summary value
    */
-  public <T> T getSummaryValue(XSummaryOrder<S, T> order);
+  public <T> ObservableValue<T> getSummaryValue(XSummaryOrder<S, T> order);
 
   /**
    * Get summary value for the summer
@@ -58,5 +59,5 @@ public interface XSummaryItem<S> {
    *          the summer
    * @return summary value
    */
-  public <T> T getSummaryValue(XSummarySummer<S, T> summer);
+  public <T> ObservableValue<T> getSummaryValue(XSummarySummer<S, T> summer);
 }

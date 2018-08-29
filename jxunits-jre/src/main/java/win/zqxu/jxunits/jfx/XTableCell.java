@@ -103,7 +103,6 @@ public abstract class XTableCell<S, T> extends TableCell<S, T> {
    *          the new value
    */
   protected void commitWhenLostFocus(T newValue) {
-    if (!isEditing()) return;
     TableView<S> table = getTableView();
     TableRow<?> row = getTableRow();
     TableColumn<S, T> column = getTableColumn();

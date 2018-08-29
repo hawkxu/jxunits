@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -52,13 +53,14 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
  * <li>{@link XSummaryTableColumn#setSortType(TableColumn.SortType)}</li>
  * <li>{@link XSummaryTableColumn#setComparator(Comparator)}</li>
  * <li>{@link XSummaryTableColumn#setSubtotalGroup(boolean)}</li>
- * <li>{@link XSummaryTableColumn#setSummer(XSummaryColumnSummer)}</li>
+ * <li>{@link XSummaryTableColumn#setSummer(XSummaryTableColumn.SummaryColumnSummer)}</li>
  * <li>{@link #getPredicates()}</li>
  * <li>{@link #getSortOrder()}</li>
  * <li>{@link #getSummers()}</li>
  * <li>{@link #setTotalRowProduce(boolean)}</li>
  * <li>{@link #setSourceItems(ObservableList)}</li>
  * </ul>
+ * <p>
  * for batch update summary list, call {@link #beginUpdateSummary()} and
  * {@link #endUpdateSummary()} around above methods in pairs
  * </p>
@@ -84,10 +86,7 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
     getStyleClass().add("x-summary-table");
     setSortPolicy(table -> true); // just do nothing
     setRowFactory(item -> new XSummaryTableRow<>());
-    setSourceItems(items);
-    summaryItems.comberProperty().bind(comber);
-    itemsProperty().bind(Bindings.createObjectBinding(() -> summaryItems));
-    getPredicates().addListener((ListChangeListener<? super XSummaryTableColumn<S, ?>>) c -> {
+    getPredicates().addListener((ListChangeListener<XSummaryTableColumn<S, ?>>) c -> {
       handlePredicatesChange(c);
     });
     getSortOrder().addListener((ListChangeListener<TableColumn<XSummaryItem<S>, ?>>) c -> {
@@ -97,6 +96,31 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
       handleSummersChange(c);
     });
     totalRowProduce.addListener((v, o, n) -> updateTotalRowProduce());
+    setSourceItems(items);
+    summaryItems.comberProperty().bind(comber);
+    summaryItems.addListener((ListChangeListener<XSummaryItem<S>>) c -> {
+      handleSummaryItemsChanged(c);
+    });
+    itemsProperty().bind(Bindings.createObjectBinding(() -> summaryItems));
+  }
+
+  private void handleSummaryItemsChanged(Change<? extends XSummaryItem<S>> c) {
+    XSummaryItem<S> selected = getSelectionModel().getSelectedItem();
+    if (selected == null) return;
+    int index = -1, sourceIndex = selected.getSourceIndex();
+    while (c.next()) {
+      if (c.wasAdded()) {
+        List<? extends XSummaryItem<S>> list = c.getAddedSubList();
+        for (int i = 0; i < list.size(); i++) {
+          if (list.get(i).getSourceIndex() == sourceIndex) {
+            index = c.getFrom() + i;
+            break;
+          }
+        }
+      }
+    }
+    final int restore = index;
+    if (restore != -1) Platform.runLater(() -> getSelectionModel().select(restore));
   }
 
   private XSummaryList<S> summaryItems = new XSummaryList<>();
@@ -134,7 +158,10 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
    */
   @Override
   public void edit(int row, TableColumn<XSummaryItem<S>, ?> column) {
-    if (row >= 0 && !summaryItems.isSummary(row)) super.edit(row, column);
+    if (row >= 0 && summaryItems.isSummary(row))
+      super.edit(-1, null);
+    else
+      super.edit(row, column);
   }
 
   private ObservableList<XSummaryTableColumn<S, ?>> summers = FXCollections.observableArrayList();

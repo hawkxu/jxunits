@@ -6,11 +6,15 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -22,7 +26,7 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
 import win.zqxu.jxunits.jre.XObjectUtils;
 
 /**
- * list support filter and summary calculation used in {@link XSummaryTableView}
+ * list support filter and summary calculation
  * 
  * @author zqxu
  */
@@ -239,11 +243,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     Predicate<S> predicate = getPredicate();
     beginChange();
     try {
-      for (int i = 0; i < size; i++)
-        nextRemove(i, items[i]);
-      size = 0;
-      items = null;
-      ensureSize(source.size());
+      resetItems(source.size());
       for (int i = 0; i < source.size(); i++) {
         S item = source.get(i);
         if (predicate == null || predicate.test(item))
@@ -265,9 +265,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     int count = size;
     beginChange();
     try {
-      size = 0;
-      items = null;
-      ensureSize(count);
+      resetItems(count);
       for (int i = 0; i < count; i++) {
         if (!temp[i].summary)
           addSourceItem(temp[i].sourceIndex, temp[i].sourceItem);
@@ -277,15 +275,31 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     }
   }
 
+  private void resetItems(int capacity) {
+    for (int i = 0; i < size; i++) {
+      nextRemove(i, items[i]);
+      if (!items[i].summary) removedOrderSummerListeners(items[i]);
+    }
+    size = 0;
+    items = null;
+    orderValueListeners.clear();
+    summerValueListeners.clear();
+    ensureSize(capacity);
+  }
+
   private void doSummaryOnly() {
     if (size == 0) return;
     beginChange();
     try {
       for (int i = 0; i < size; i++) {
-        if (!items[i].summary) {
-          updateTotal(true, items[i]);
-          updateSubtotal(true, i, items[i]);
+        if (items[i].summary) {
+          items[i].summerCounter = 0;
+          items[i].summerValues.clear();
         }
+      }
+      for (int i = 0; i < size; i++) {
+        if (!items[i].summary)
+          updateSummary(true, i, null, null);
       }
     } finally {
       endChange();
@@ -307,13 +321,17 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     beginChange();
     try {
       if (totalProduce) {
+        SummaryItemImpl<S> total = new SummaryItemImpl<>(false);
         for (int i = 0; i < size; i++) {
-          if (!items[i].summary) updateTotal(true, items[i]);
+          if (!items[i].summary) {
+            Map<XSummarySummer<S, ?>, Object> differenceValues =
+                buildDifferenceValues(true, items[i].sourceItem);
+            updateSummary(total, 1, 0, differenceValues);
+          }
         }
       } else if (size > 0) {
         SummaryItemImpl<S> last = items[size - 1];
-        if (last.summary && !last.subtotal)
-          removeItem(size - 1);
+        if (last.summary && !last.subtotal) removeItem(size - 1);
       }
     } finally {
       endChange();
@@ -375,8 +393,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     SummaryItemImpl<S> unsorted = new SummaryItemImpl<>(sourceIndex, sourceItem);
     int index = findInsertPos(unsorted);
     addItem(index, unsorted);
-    updateTotal(true, unsorted);
-    updateSubtotal(true, index, unsorted);
+    updateSummary(true, index, null, null);
   }
 
   private int findInsertPos(SummaryItemImpl<S> item) {
@@ -398,6 +415,25 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     items[index] = unsorted;
     size++;
     nextAdd(index, index + 1);
+    if (!unsorted.summary) addOrderSummerListeners(index, unsorted);
+  }
+
+  private void addOrderSummerListeners(int index, SummaryItemImpl<S> item) {
+    S sourceItem = item.sourceItem;
+    if (orders != null) {
+      for (XSummaryOrder<S, ?> order : orders) {
+        ObservableValue<?> ov = order.getObservableValue(sourceItem);
+        item.orderValues.put(order, ov);
+        ov.addListener(getOrderValueListener(item.sourceIndex, order));
+      }
+    }
+    if (summers != null) {
+      for (XSummarySummer<S, ?> summer : summers) {
+        ObservableValue<?> ov = summer.getObservableValue(sourceItem);
+        item.summerValues.put(summer, ov);
+        ov.addListener(getSummerValueListener(item.sourceIndex, summer));
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -410,48 +446,76 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     }
   }
 
-  private void updateTotal(boolean add, SummaryItemImpl<S> item) {
-    if (summers != null && totalProduce)
-      updateSummary(new SummaryItemImpl<>(false), add, 0, item);
-  }
-
-  private void updateSubtotal(boolean add, int index, SummaryItemImpl<S> item) {
-    if (orders == null || summers == null) return;
+  private void updateSummary(boolean add, int from,
+      Map<XSummaryOrder<S, ?>, Object> forcedOrderValues,
+      Map<XSummarySummer<S, ?>, Object> differenceValues) {
+    if (summers == null) return;
+    S sourceItem = items[from].sourceItem;
+    int count = 0;
+    if (differenceValues == null) {
+      count = add ? 1 : -1;
+      differenceValues = buildDifferenceValues(add, sourceItem);
+    }
+    updateSummary(new SummaryItemImpl<>(false), count, from, differenceValues);
     List<XSummaryOrder<S, ?>> groupKeys = new ArrayList<>();
+    if (orders == null) return;
     for (XSummaryOrder<S, ?> order : orders) {
       groupKeys.add(order);
       if (!order.isSubtotalGroup()) continue;
       SummaryItemImpl<S> subtotal = new SummaryItemImpl<>(true);
-      for (XSummaryOrder<S, ?> key : groupKeys)
-        subtotal.orderValues.put(key, key.getOrderValue(item.sourceItem));
-      updateSummary(subtotal, add, index, item);
+      for (XSummaryOrder<S, ?> group : groupKeys) {
+        Object value;
+        if (forcedOrderValues != null && forcedOrderValues.containsKey(group))
+          value = forcedOrderValues.get(group);
+        else
+          value = group.getObservableValue(sourceItem).getValue();
+        subtotal.orderValues.put(group, new SimpleObjectProperty<>(value));
+      }
+      updateSummary(subtotal, count, from, differenceValues);
     }
   }
 
   @SuppressWarnings("unchecked")
-  private void updateSummary(SummaryItemImpl<S> summary, boolean add, int from,
-      SummaryItemImpl<S> item) {
-    int index = findSummaryPos(summary, from);
-    if (index >= 0) summary = items[index];
+  private Map<XSummarySummer<S, ?>, Object> buildDifferenceValues(boolean add, S sourceItem) {
+    Map<XSummarySummer<S, ?>, Object> differenceValues = new HashMap<>();
     for (XSummarySummer<S, ?> summer : summers) {
-      Object summing = summary.summerValues.get(summer);
-      XSummarySummer<S, Object> generic = (XSummarySummer<S, Object>) summer;
+      XSummarySummer<S, Object> s2 = (XSummarySummer<S, Object>) summer;
+      Object value = s2.getObservableValue(sourceItem).getValue();
       if (add)
-        summing = generic.sum(summing, item.sourceItem);
+        differenceValues.put(summer, s2.sum(null, value));
       else
-        summing = generic.subtract(summing, item.sourceItem);
-      summary.count += add ? 1 : -1;
-      summary.summerValues.put(summer, summing);
+        differenceValues.put(summer, s2.subtract(null, value));
     }
-    if (!add && summary.count == 0) {
+    return differenceValues;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void updateSummary(SummaryItemImpl<S> summary, int count, int from,
+      Map<XSummarySummer<S, ?>, Object> differenceValues) {
+    int index = findSummaryPos(summary, from + 1);
+    if (index >= 0) summary = items[index];
+    summary.summerCounter += count;
+    if (summary.summerCounter == 0) {
       removeItem(index);
-    } else if (index >= 0) {
-      items[index] = summary;
-      nextUpdate(index);
-    } else {
-      index = -index;
-      addItem(index, summary);
+      return;
     }
+    boolean updated = false;
+    for (XSummarySummer<S, ?> summer : differenceValues.keySet()) {
+      Object difference = differenceValues.get(summer);
+      SimpleObjectProperty<Object> current =
+          (SimpleObjectProperty<Object>) summary.summerValues.get(summer);
+      if (current != null) {
+        XSummarySummer<S, Object> s2 = (XSummarySummer<S, Object>) summer;
+        current.set(s2.sum(current.get(), difference));
+      } else {
+        updated = true;
+        summary.summerValues.put(summer, new SimpleObjectProperty<>(difference));
+      }
+    }
+    if (index < 0)
+      addItem(-index, summary);
+    else if (updated)
+      nextUpdate(index);
   }
 
   private int findSummaryPos(SummaryItemImpl<S> summary, int from) {
@@ -473,24 +537,159 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
   private void removeSourceItem(int sourceIndex) {
     int index = findSourceItem(sourceIndex);
     if (index >= 0) {
-      SummaryItemImpl<S> removed = items[index];
+      updateSummary(false, index, null, null);
       removeItem(index);
-      updateTotal(false, removed);
-      updateSubtotal(false, index, removed);
     }
   }
 
   private void removeItem(int index) {
-    XSummaryItem<S> removed = items[index];
+    SummaryItemImpl<S> removed = items[index];
     System.arraycopy(items, index + 1, items, index, size - index - 1);
     items[--size] = null;
     nextRemove(index, removed);
+    if (!removed.isSummary()) removedOrderSummerListeners(removed);
+  }
+
+  private void removedOrderSummerListeners(SummaryItemImpl<S> removed) {
+    for (XSummaryOrder<S, ?> order : removed.orderValues.keySet()) {
+      ObservableValue<?> orderValue = removed.orderValues.get(order);
+      orderValue.removeListener(removeOrderValueListener(removed.sourceIndex, order));
+    }
+    removed.orderValues.clear();
+    for (XSummarySummer<S, ?> summer : removed.summerValues.keySet()) {
+      ObservableValue<?> summerValue = removed.summerValues.get(summer);
+      summerValue.removeListener(removeSummerValueListener(removed.sourceIndex, summer));
+    }
+    removed.summerValues.clear();
   }
 
   private void updateIndices(int from, int difference) {
     for (int i = 0; i < size; i++) {
-      if (items[i].sourceIndex >= from)
-        items[i].sourceIndex += difference;
+      if (items[i].sourceIndex >= from) items[i].sourceIndex += difference;
+    }
+    for (OvlProxy<S> proxy : orderValueListeners) {
+      if (proxy.sourceIndex >= from) proxy.sourceIndex += difference;
+    }
+    for (SvlProxy<S> proxy : summerValueListeners) {
+      if (proxy.sourceIndex >= from) proxy.sourceIndex += difference;
+    }
+  }
+
+  private List<OvlProxy<S>> orderValueListeners = new ArrayList<>();
+
+  private WeakChangeListener<? super Object> getOrderValueListener(int sourceIndex,
+      XSummaryOrder<S, ?> order) {
+    int index = orderValueListeners.indexOf(new OvlProxy<>(sourceIndex, order));
+    final OvlProxy<S> proxy = index == -1 ? new OvlProxy<>(sourceIndex, order)
+        : orderValueListeners.get(index);
+    if (index == -1) {
+      orderValueListeners.add(proxy);
+      proxy.listener = new WeakChangeListener<>((v, o, n) -> handleOrderValueChange(proxy, o, n));
+    }
+    return proxy.listener;
+  }
+
+  private ChangeListener<? super Object> removeOrderValueListener(int sourceIndex,
+      XSummaryOrder<S, ?> order) {
+    int index = orderValueListeners.indexOf(new OvlProxy<>(sourceIndex, order));
+    return orderValueListeners.remove(index).listener;
+  }
+
+  private void handleOrderValueChange(OvlProxy<S> proxy, Object o, Object n) {
+    beginChange();
+    try {
+      int index = findSourceItem(proxy.sourceIndex);
+      if (index >= 0) {
+        Map<XSummaryOrder<S, ?>, Object> forcedOrderValues = new HashMap<>();
+        forcedOrderValues.put(proxy.order, o);
+        updateSummary(false, index, forcedOrderValues, null);
+        SummaryItemImpl<S> item = items[index];
+        removeItem(index);
+        addSourceItem(item.sourceIndex, item.sourceItem);
+      }
+    } finally {
+      endChange();
+    }
+  }
+
+  private List<SvlProxy<S>> summerValueListeners = new ArrayList<>();
+
+  private WeakChangeListener<? super Object> getSummerValueListener(int sourceIndex,
+      XSummarySummer<S, ?> summer) {
+    int index = summerValueListeners.indexOf(new SvlProxy<>(sourceIndex, summer));
+    final SvlProxy<S> proxy = index == -1 ? new SvlProxy<>(sourceIndex, summer)
+        : summerValueListeners.get(index);
+    if (index == -1) {
+      summerValueListeners.add(proxy);
+      proxy.listener = new WeakChangeListener<>((v, o, n) -> handleSummerValueChange(proxy, o, n));
+    }
+    return proxy.listener;
+  }
+
+  private ChangeListener<? super Object> removeSummerValueListener(int sourceIndex,
+      XSummarySummer<S, ?> summer) {
+    int index = summerValueListeners.indexOf(new SvlProxy<>(sourceIndex, summer));
+    return summerValueListeners.remove(index).listener;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void handleSummerValueChange(SvlProxy<S> proxy, Object o, Object n) {
+    XSummarySummer<S, Object> s2 = (XSummarySummer<S, Object>) proxy.summer;
+    Map<XSummarySummer<S, ?>, Object> differenceValues = new HashMap<>();
+    differenceValues.put(proxy.summer, s2.subtract(n, o));
+    int index = findSourceItem(proxy.sourceIndex);
+    updateSummary(true, index, null, differenceValues);
+  }
+
+  // Order value listener proxy
+  private static class OvlProxy<S> {
+    private int sourceIndex;
+    private XSummaryOrder<S, ?> order;
+    private WeakChangeListener<? super Object> listener;
+
+    public OvlProxy(int sourceIndex, XSummaryOrder<S, ?> order) {
+      this.sourceIndex = sourceIndex;
+      this.order = order;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(sourceIndex, order);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof OvlProxy)) return false;
+      OvlProxy<S> test = (OvlProxy<S>) obj;
+      // use == to check order exactly equals
+      return sourceIndex == test.sourceIndex && order == test.order;
+    }
+  }
+
+  // Summer value listener proxy
+  private static class SvlProxy<S> {
+    private int sourceIndex;
+    private XSummarySummer<S, ?> summer;
+    private WeakChangeListener<? super Object> listener;
+
+    public SvlProxy(int sourceIndex, XSummarySummer<S, ?> summer) {
+      this.sourceIndex = sourceIndex;
+      this.summer = summer;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(sourceIndex, summer);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof SvlProxy)) return false;
+      SvlProxy<S> test = (SvlProxy<S>) obj;
+      // use == to check summer exactly equals
+      return sourceIndex == test.sourceIndex && summer == test.summer;
     }
   }
 
@@ -529,9 +728,10 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     }
 
     private Object getComparingValue(XSummaryOrder<S, ?> order, XSummaryItem<S> item) {
-      if (item.isSummary())
-        return item.getSummaryValue(order);
-      return order.getOrderValue(item.getSourceItem());
+      ObservableValue<?> ov = item.isSummary()
+          ? item.getSummaryValue(order)
+          : order.getObservableValue(item.getSourceItem());
+      return ov == null ? null : ov.getValue();
     }
   }
 
@@ -540,9 +740,9 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     private S sourceItem;
     private boolean summary;
     private boolean subtotal;
-    private int count;
-    private Map<XSummaryOrder<S, ?>, Object> orderValues;
-    private Map<XSummarySummer<S, ?>, Object> summerValues;
+    private int summerCounter;
+    private Map<XSummaryOrder<S, ?>, ObservableValue<?>> orderValues = new HashMap<>();
+    private Map<XSummarySummer<S, ?>, ObservableValue<?>> summerValues = new HashMap<>();
 
     public SummaryItemImpl(int sourceIndex, S sourceItem) {
       this.sourceIndex = sourceIndex;
@@ -552,8 +752,6 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     public SummaryItemImpl(boolean subtotal) {
       this.summary = true;
       this.subtotal = subtotal;
-      this.orderValues = new HashMap<>();
-      this.summerValues = new HashMap<>();
     }
 
     @Override
@@ -578,14 +776,14 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T getSummaryValue(XSummaryOrder<S, T> order) {
-      return (T) orderValues.get(order);
+    public <T> ObservableValue<T> getSummaryValue(XSummaryOrder<S, T> order) {
+      return (ObservableValue<T>) orderValues.get(order);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T getSummaryValue(XSummarySummer<S, T> summer) {
-      return (T) summerValues.get(summer);
+    public <T> ObservableValue<T> getSummaryValue(XSummarySummer<S, T> summer) {
+      return (ObservableValue<T>) summerValues.get(summer);
     }
   }
 }

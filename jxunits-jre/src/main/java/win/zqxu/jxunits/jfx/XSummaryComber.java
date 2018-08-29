@@ -9,6 +9,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn.SortType;
 
@@ -136,43 +137,52 @@ public class XSummaryComber<S> {
     public SortType getSortType();
 
     /**
-     * Get ordering value of the item for this order
-     * 
-     * @param item
-     *          the item
-     * @return ordering value
-     */
-    public T getOrderValue(S item);
-
-    /**
      * Indicator for whether this order is subtotal group
      * 
      * @return true or false
      */
     public boolean isSubtotalGroup();
+
+    /**
+     * Get observable value for this order from the item
+     * 
+     * @param item
+     *          the item
+     * @return observable value
+     */
+    public ObservableValue<T> getObservableValue(S item);
   }
 
   public static interface XSummarySummer<S, T> {
+    /**
+     * Get observable value for this summer from the item
+     * 
+     * @param item
+     *          the item
+     * @return observable value
+     */
+    public ObservableValue<T> getObservableValue(S item);
+
     /**
      * Sum item to the summing value
      * 
      * @param summing
      *          the summing value, maybe null
-     * @param item
-     *          the item to sum, maybe null
+     * @param value
+     *          the value to sum, maybe null
      * @return summing result
      */
-    public T sum(T summing, S item);
+    public T sum(T summing, T value);
 
     /**
      * Subtract item from the summing value
      * 
      * @param summing
      *          the summing value, maybe null
-     * @param item
-     *          the item to subtract, maybe null
+     * @param value
+     *          the value to subtract, maybe null
      * @return summing result
      */
-    public T subtract(T summing, S item);
+    public T subtract(T summing, T value);
   }
 }
