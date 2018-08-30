@@ -354,6 +354,6 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
 
   @Override
   public String getUserAgentStylesheet() {
-    return XValueField.class.getResource("x-styles.css").toExternalForm();
+    return XSummaryTableView.class.getResource("x-styles.css").toExternalForm();
   }
 }

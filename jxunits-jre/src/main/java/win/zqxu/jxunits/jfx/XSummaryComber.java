@@ -164,7 +164,7 @@ public class XSummaryComber<S> {
     public ObservableValue<T> getObservableValue(S item);
 
     /**
-     * Sum item to the summing value
+     * Sum value with the summing value
      * 
      * @param summing
      *          the summing value, maybe null
@@ -175,7 +175,7 @@ public class XSummaryComber<S> {
     public T sum(T summing, T value);
 
     /**
-     * Subtract item from the summing value
+     * Subtract value from the summing value
      * 
      * @param summing
      *          the summing value, maybe null
