@@ -57,6 +57,9 @@ public class XValueTableCell<S, T> extends XTableCell<S, T> {
     this.getStyleClass().add("x-value-table-cell");
   }
 
+  /**
+   * register event listener for the editor
+   */
   @Override
   protected XValueField<T> createEditor() {
     editor.setOnKeyReleased(evt -> {
@@ -77,11 +80,26 @@ public class XValueTableCell<S, T> extends XTableCell<S, T> {
     return editor;
   }
 
+  /**
+   * get editor belong to the cell
+   * 
+   * @return editor
+   */
+  protected XValueField<T> getEditor() {
+    return editor;
+  }
+
+  /**
+   * update editor value
+   */
   @Override
   protected void updateEditor(T item) {
     editor.setValue(item);
   }
 
+  /**
+   * convert item to text through editor
+   */
   @Override
   protected String getItemText(T item) {
     return editor.convertToString(item);

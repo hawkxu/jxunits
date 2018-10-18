@@ -192,6 +192,16 @@ public class XValueField<T> extends TextField {
     }
   }
 
+  @Override
+  public void cut() {
+    if (getFormatter() != null) super.cut();
+  }
+
+  @Override
+  public void paste() {
+    if (getFormatter() != null) super.paste();
+  }
+
   /**
    * Convert string to value
    * 

@@ -10,11 +10,22 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn.CellEditEvent;
 
-public abstract class XTableCell<S, T> extends TableCell<S, T> {
+public class XTableCell<S, T> extends TableCell<S, T> {
   private Node editor;
 
   public XTableCell() {
     this.getStyleClass().add("x-table-cell");
+  }
+
+  /**
+   * Get row item, null if no table row associated
+   * 
+   * @return row item
+   */
+  public S getRowItem() {
+    @SuppressWarnings("unchecked")
+    TableRow<S> row = getTableRow();
+    return row == null ? null : row.getItem();
   }
 
   /**
@@ -26,7 +37,10 @@ public abstract class XTableCell<S, T> extends TableCell<S, T> {
     if (!isEditing()) return;
     if (editor == null)
       editor = createEditor();
-    if (editor == null) return;
+    if (editor == null) {
+      super.cancelEdit();
+      return;
+    }
     setText(null);
     setGraphic(editor);
     updateEditor(getItem());

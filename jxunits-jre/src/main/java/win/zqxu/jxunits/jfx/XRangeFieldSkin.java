@@ -18,7 +18,7 @@ import win.zqxu.jxunits.jre.XResource;
 public class XRangeFieldSkin<T extends Comparable<? super T>>
     extends SkinBase<XRangeField<T>> {
   private static final PseudoClass FIXED = PseudoClass.getPseudoClass("fixed");
-  protected XRangeField<T> control;
+  protected final XRangeField<T> control;
   protected Button btnOption;
   protected XRangeOptionMenu mnuOption;
   protected XValueField<T> xvfLow;
@@ -43,18 +43,22 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
     btnOption.setGraphic(new ImageView());
     btnOption.setPadding(new Insets(3, 4, 4, 4));
     btnOption.setOnAction(event -> showOptionMenu());
-    getChildren().add(xvfLow = new XValueField<>());
+    getChildren().add(xvfLow = createValueField());
     xvfLow.getStyleClass().add("low");
     getChildren().add(labTo = new Label());
     labTo.getStyleClass().add("to");
     labTo.setText(XResource.getString("RANGE.TO"));
-    getChildren().add(xvfHigh = new XValueField<>());
+    getChildren().add(xvfHigh = createValueField());
     xvfHigh.getStyleClass().add("high");
     getChildren().add(btnMultiple = new Button());
     btnMultiple.getStyleClass().add("multiple");
     btnMultiple.setGraphic(new ImageView());
     btnMultiple.setPadding(new Insets(3, 4, 4, 4));
     btnMultiple.setOnAction(event -> showRangeEditor());
+  }
+
+  protected XValueField<T> createValueField() {
+    return new XValueField<>();
   }
 
   private void bindRangeControl() {

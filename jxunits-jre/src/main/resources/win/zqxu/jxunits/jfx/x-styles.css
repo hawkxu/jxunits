@@ -10,7 +10,7 @@
  -fx-background-color: transparent;
 }
 
-.x-value-table-cell {
+.x-table-cell {
   -fx-padding: 0 3 0 3;
   -fx-alignment: center-left;
 }

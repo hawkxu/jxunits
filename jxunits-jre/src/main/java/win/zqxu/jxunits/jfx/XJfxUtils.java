@@ -362,13 +362,15 @@ public class XJfxUtils {
     StringBuilder message = new StringBuilder();
     Throwable cause = ex;
     while (cause != null) {
-      if (message.length() > 0)
-        message.append("\n");
       String msg = cause.getMessage();
       if (msg != null && !msg.isEmpty()) {
-        if (msg.length() > 50)
-          msg = msg.substring(0, 50) + " ...";
-        message.append(msg);
+        if (msg.length() > 80)
+          msg = msg.substring(0, 80) + " ...";
+        if (message.indexOf(msg) == -1) {
+          if (message.length() > 0)
+            message.append("\n");
+          message.append(msg);
+        }
       }
       cause = cause.getCause();
     }

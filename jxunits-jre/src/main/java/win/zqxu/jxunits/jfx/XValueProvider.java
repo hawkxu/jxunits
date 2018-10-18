@@ -587,6 +587,7 @@ public abstract class XValueProvider<T> {
       }
       itemsTable.setPrefWidth(prefWidth);
       TableRow<?> tableRow = (TableRow<?>) itemsTable.lookup("TableRow");
+      if (tableRow == null) return; // no any items
       double rowHeight = tableRow.getHeight();
       int rows = Math.min(8, itemsTable.getItems().size());
       double insetsHeight = insets.getTop() + insets.getBottom();

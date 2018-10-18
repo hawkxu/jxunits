@@ -243,8 +243,9 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     Predicate<S> predicate = getPredicate();
     beginChange();
     try {
-      resetItems(source.size());
-      for (int i = 0; i < source.size(); i++) {
+      int count = source == null ? 0 : source.size();
+      resetItems(count);
+      for (int i = 0; i < count; i++) {
         S item = source.get(i);
         if (predicate == null || predicate.test(item))
           addSourceItem(i, item);

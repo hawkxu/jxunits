@@ -118,11 +118,13 @@ public class XRangeItem<T extends Comparable<? super T>> {
     T lowValue = getLow(), highValue = getHigh();
     XRangeOption option = getOption();
     if (!isEmpty(highValue)) {
-      option = option == XRangeOption.NB ? option : XRangeOption.BT;
+      if (option != XRangeOption.NB)
+        option = XRangeOption.BT;
     } else if (isEmpty(lowValue)) {
       if (!init) option = null;
     } else if (containsWildcard(lowValue)) {
-      if (!containsWildcard(oldLow)) option = XRangeOption.CP;
+      if (init || !containsWildcard(oldLow))
+        option = XRangeOption.CP;
     } else if (option == null
         || option == XRangeOption.CP
         || option == XRangeOption.NP
