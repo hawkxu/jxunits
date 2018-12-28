@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -222,6 +224,9 @@ public class XJfxUtils {
     try {
       formatter.setValue(defaultValue);
       field.setTextFormatter(formatter);
+      Platform.runLater(() -> {
+        field.requestFocus();
+      });
       dialog.showAndWait();
     } finally {
       field.setTextFormatter(null); // release formatter
@@ -245,8 +250,8 @@ public class XJfxUtils {
   }
 
   /**
-   * Create a dialog with specified content and buttons, this function will initialize
-   * dialog owner and dialog modality type, and set icon for buttons
+   * Create a dialog with specified content and buttons, this function will
+   * initialize dialog owner and dialog modality type, and set icon for buttons
    * 
    * @param owner
    *          a reference node in the owner window
@@ -270,8 +275,8 @@ public class XJfxUtils {
   }
 
   /**
-   * update dialog button icons, use {@link #setButtonIcon(ButtonType, Image)} to set icon
-   * for button type.
+   * update dialog button icons, use {@link #setButtonIcon(ButtonType, Image)}
+   * to set icon for button type.
    * 
    * @param pane
    *          the dialog pane
@@ -453,7 +458,8 @@ public class XJfxUtils {
   }
 
   /**
-   * show file open dialog allow select multiple files and get user selected files
+   * show file open dialog allow select multiple files and get user selected
+   * files
    * 
    * @param owner
    *          a reference node in the owner window
@@ -469,7 +475,8 @@ public class XJfxUtils {
   }
 
   /**
-   * show file open dialog allow select multiple files and get user selected files
+   * show file open dialog allow select multiple files and get user selected
+   * files
    * 
    * @param owner
    *          a reference node in the owner window
@@ -589,8 +596,8 @@ public class XJfxUtils {
   }
 
   /**
-   * close window which own the reference node, fire WindowEvent.WINDOW_CLOSE_REQUEST for
-   * the window
+   * close window which own the reference node, fire
+   * WindowEvent.WINDOW_CLOSE_REQUEST for the window
    * 
    * @param reference
    *          any node in the closing window
@@ -654,6 +661,73 @@ public class XJfxUtils {
       method.invoke(column, column.getWidth() + freeWidth);
     } catch (Exception ex) {
       // completely ignored any exceptions
+    }
+  }
+
+  private static class ResultProxy<V> {
+    private V result;
+    private Exception exception;
+  }
+
+  /**
+   * run a call able task and wait the task to complete
+   * 
+   * @param <V> result type of the task
+   * @param task
+   *          the call able task
+   * @return result of the task
+   * @throws Exception
+   *           if any errors occurred
+   */
+  public static <V> V runAndWait(Callable<V> task) throws Exception {
+    if (Platform.isFxApplicationThread())
+      return task.call();
+    final CountDownLatch doneLatch = new CountDownLatch(1);
+    final ResultProxy<V> proxy = new ResultProxy<>();
+    Platform.runLater(() -> {
+      try {
+        proxy.result = task.call();
+      } catch (Exception ex) {
+        proxy.exception = ex;
+      } finally {
+        doneLatch.countDown();
+      }
+    });
+    try {
+      doneLatch.await();
+    } catch (InterruptedException ex) {
+      throw ex;
+    }
+    if (proxy.exception != null) throw proxy.exception;
+    return proxy.result;
+  }
+
+  /**
+   * run a runnable task and wait the task to complete
+   * 
+   * @param task
+   *          the runnable task
+   * @throws InterruptedException
+   *           if thread was interrupted
+   */
+  public static void runAndWait(Runnable task)
+      throws InterruptedException {
+    if (Platform.isFxApplicationThread()) {
+      task.run();
+      return;
+    }
+    final CountDownLatch doneLatch = new CountDownLatch(1);
+    Platform.runLater(() -> {
+      try {
+        task.run();
+      } finally {
+        doneLatch.countDown();
+      }
+    });
+    try {
+      doneLatch.await();
+    } catch (InterruptedException ex) {
+      throw ex;
     }
   }
 }
