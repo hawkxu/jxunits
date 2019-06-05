@@ -1,5 +1,7 @@
 package win.zqxu.jxunits.jfx;
 
+import java.util.Objects;
+
 import javafx.application.Platform;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.input.KeyCode;
@@ -76,8 +78,16 @@ public class XValueTableCell<S, T> extends XTableCell<S, T> {
     editor.focusedProperty().addListener((v, o, n) -> {
       if (!n) commitWhenLostFocus(editor.getValue());
     });
+    editor.valueProperty().addListener((v, o, n) -> {
+      commitProviderLostFocus(n);
+    });
     Platform.runLater(() -> editor.selectAll());
     return editor;
+  }
+
+  private void commitProviderLostFocus(T newValue) {
+    if (!editor.isFocused() && !Objects.equals(newValue, getItem()))
+      commitWhenLostFocus(newValue);
   }
 
   /**

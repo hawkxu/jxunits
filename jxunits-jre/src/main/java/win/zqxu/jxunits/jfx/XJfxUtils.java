@@ -250,8 +250,8 @@ public class XJfxUtils {
   }
 
   /**
-   * Create a dialog with specified content and buttons, this function will
-   * initialize dialog owner and dialog modality type, and set icon for buttons
+   * Create a dialog with specified content and buttons, this function will initialize
+   * dialog owner and dialog modality type, and set icon for buttons
    * 
    * @param owner
    *          a reference node in the owner window
@@ -275,8 +275,8 @@ public class XJfxUtils {
   }
 
   /**
-   * update dialog button icons, use {@link #setButtonIcon(ButtonType, Image)}
-   * to set icon for button type.
+   * update dialog button icons, use {@link #setButtonIcon(ButtonType, Image)} to set icon
+   * for button type.
    * 
    * @param pane
    *          the dialog pane
@@ -458,8 +458,7 @@ public class XJfxUtils {
   }
 
   /**
-   * show file open dialog allow select multiple files and get user selected
-   * files
+   * show file open dialog allow select multiple files and get user selected files
    * 
    * @param owner
    *          a reference node in the owner window
@@ -475,8 +474,7 @@ public class XJfxUtils {
   }
 
   /**
-   * show file open dialog allow select multiple files and get user selected
-   * files
+   * show file open dialog allow select multiple files and get user selected files
    * 
    * @param owner
    *          a reference node in the owner window
@@ -537,7 +535,7 @@ public class XJfxUtils {
       chooser.setSelectedExtensionFilter(filters[0]);
     }
     if (initialFile != null) {
-      if (initialFile.isFile()) {
+      if (!initialFile.isDirectory()) {
         String name = initialFile.getName();
         chooser.setInitialFileName(name);
         name = name.replaceFirst("^.*\\.", "");
@@ -596,8 +594,8 @@ public class XJfxUtils {
   }
 
   /**
-   * close window which own the reference node, fire
-   * WindowEvent.WINDOW_CLOSE_REQUEST for the window
+   * close window which own the reference node, fire WindowEvent.WINDOW_CLOSE_REQUEST for
+   * the window
    * 
    * @param reference
    *          any node in the closing window
@@ -672,7 +670,8 @@ public class XJfxUtils {
   /**
    * run a call able task and wait the task to complete
    * 
-   * @param <V> result type of the task
+   * @param <V>
+   *          result type of the task
    * @param task
    *          the call able task
    * @return result of the task

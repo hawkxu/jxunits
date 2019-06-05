@@ -38,12 +38,12 @@ public class XMessageLabel extends Label {
     ERROR;
   }
 
-  private static final ImageView IMV_INFO;
-  private static final ProgressIndicator PGI_BUSY;
-  private static final ImageView IMV_WARN;
-  private static final ImageView IMV_ERROR;
+  private ImageView IMV_INFO;
+  private ProgressIndicator PGI_BUSY;
+  private ImageView IMV_WARN;
+  private ImageView IMV_ERROR;
 
-  static {
+  public XMessageLabel() {
     IMV_INFO = new ImageView(XImageLoader.get("information.png"));
     PGI_BUSY = new ProgressIndicator();
     PGI_BUSY.setPrefSize(16, 16);
@@ -113,7 +113,7 @@ public class XMessageLabel extends Label {
       break;
     case WARN:
       setGraphic(IMV_WARN);
-      setTextFill(Color.ORANGE);
+      setTextFill(Color.PERU);
       break;
     default:
       setGraphic(IMV_ERROR);
@@ -171,6 +171,8 @@ public class XMessageLabel extends Label {
   /**
    * show message, can be safely called outside the JavaFX Application Thread
    * 
+   * @param type
+   *          the message type
    * @param message
    *          the message text
    */
