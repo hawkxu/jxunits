@@ -2,8 +2,10 @@ package win.zqxu.jxunits.jfx;
 
 import com.sun.javafx.scene.control.skin.TextFieldSkin;
 
+import javafx.beans.value.ChangeListener;
 import javafx.css.PseudoClass;
 import javafx.geometry.Pos;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.StackPane;
 
 @SuppressWarnings("restriction")
@@ -15,8 +17,24 @@ class XValueFieldSkin<T> extends TextFieldSkin {
   protected XValueFieldSkin(XValueField<T> field) {
     super(field);
     this.field = field;
+    handleFormatterChanged(null, field.getFormatter());
     handleProviderChanged(null, field.getProvider());
+    field.formatterProperty().addListener((v, o, n) -> handleFormatterChanged(o, n));
     field.providerProperty().addListener((v, o, n) -> handleProviderChanged(o, n));
+  }
+
+  private ChangeListener<T> formatterValueHandler = (v, o, n) -> {
+    if (!field.valueProperty().isBound()) field.setValue(n);
+  };
+  
+  private void handleFormatterChanged(TextFormatter<T> o, TextFormatter<T> n) {
+    if (o != null) {
+      o.valueProperty().removeListener(formatterValueHandler);
+    }
+    if (n != null) {
+      n.setValue(field.getValue());
+      n.valueProperty().addListener(formatterValueHandler);
+    }
   }
 
   private void handleProviderChanged(XValueProvider<T> o, XValueProvider<T> n) {

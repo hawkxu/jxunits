@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
@@ -17,8 +18,10 @@ import javafx.util.StringConverter;
 import javafx.util.converter.BigDecimalStringConverter;
 import javafx.util.converter.BigIntegerStringConverter;
 import javafx.util.converter.ByteStringConverter;
+import javafx.util.converter.DateStringConverter;
 import javafx.util.converter.DefaultStringConverter;
 import javafx.util.converter.DoubleStringConverter;
+import javafx.util.converter.FloatStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import javafx.util.converter.LocalDateStringConverter;
 import javafx.util.converter.LocalDateTimeStringConverter;
@@ -69,6 +72,10 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * default pattern for big integer value
    */
   public static final String DEFAULT_BIGINT_PATTERN = "[+-]?\\d*";
+  /**
+   * default pattern for float value
+   */
+  public static final String DEFAULT_FLOAT_PATTERN = "[+-]?\\d*\\.\\d*";
   /**
    * default pattern for double value
    */
@@ -147,6 +154,22 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create a new XPatternFormatter instance for string value using
+   * <code>DefaultStringConverter</code> and pattern, convert input text to specified
+   * case. if the pattern is null or empty, then no input restrictions
+   * 
+   * @param pattern
+   *          the regular expression pattern
+   * @param charCase
+   *          the specified char case
+   * @return XPatternFormatter instance
+   * @see DefaultStringConverter
+   */
+  public static XPatternFormatter<String> STRING(String pattern, CharCase charCase) {
+    return new XPatternFormatter<>(new DefaultStringConverter(), pattern, charCase);
+  }
+
+  /**
    * Create a XPatternFormatter instance for string value using
    * <code>XTrimStringConverter</code> with pattern.
    * 
@@ -211,15 +234,18 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
-   * Create a new XPatternFormatter instance for number using
-   * <code>NumberStringConverter</code> and default unsigned pattern
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
    * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
    * @return XPatternFormatter instance
    * @see NumberStringConverter
-   * @see #DEFAULT_UNSIGNED_PATTERN
    */
-  public static XPatternFormatter<Number> UNSIGNED() {
-    return NUMBER(DEFAULT_UNSIGNED_PATTERN);
+  public static XPatternFormatter<Number> INTEGER(boolean signed, int numbers) {
+    return NUMBER(signed, numbers, 0);
   }
 
   /**
@@ -235,6 +261,21 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> LONG(boolean signed, int numbers) {
+    return NUMBER(signed, numbers, 0);
+  }
+
+  /**
    * Create a new XPatternFormatter instance for number using
    * <code>NumberStringConverter</code> and default big integer pattern
    * 
@@ -244,6 +285,50 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    */
   public static XPatternFormatter<Number> BIGINT() {
     return NUMBER(DEFAULT_BIGINT_PATTERN);
+  }
+
+  /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> BIGINT(boolean signed, int numbers) {
+    return NUMBER(signed, numbers, 0);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for number using
+   * <code>NumberStringConverter</code> and default float pattern
+   * 
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   * @see #DEFAULT_FLOAT_PATTERN
+   */
+  public static XPatternFormatter<Number> FLOAT() {
+    return NUMBER(DEFAULT_FLOAT_PATTERN);
+  }
+
+  /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> FLOAT(boolean signed, int numbers, int decimals) {
+    return NUMBER(signed, numbers, decimals);
   }
 
   /**
@@ -259,6 +344,23 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> DOUBLE(boolean signed, int numbers, int decimals) {
+    return NUMBER(signed, numbers, decimals);
+  }
+
+  /**
    * Create a new XPatternFormatter instance for number using
    * <code>NumberStringConverter</code> and default big decimal pattern
    * 
@@ -268,6 +370,40 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    */
   public static XPatternFormatter<Number> BIGDEC() {
     return NUMBER(DEFAULT_BIGDEC_PATTERN);
+  }
+
+  /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> BIGDEC(boolean signed, int numbers, int decimals) {
+    return NUMBER(signed, numbers, decimals);
+  }
+
+  /**
+   * Create XPatternFormatter instance for specified signed option and max numbers of
+   * number value using <code>NumberStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see NumberStringConverter
+   */
+  public static XPatternFormatter<Number> NUMBER(boolean signed, int numbers, int decimals) {
+    return NUMBER(getNumericPattern(signed, numbers, decimals));
   }
 
   /**
@@ -358,6 +494,21 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of integer value using <code>IntegerStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
+   * @return XPatternFormatter instance
+   * @see IntegerStringConverter
+   */
+  public static XPatternFormatter<Integer> Integer(boolean signed, int numbers) {
+    return Integer(getNumericPattern(signed, numbers, 0));
+  }
+
+  /**
    * Create a new XPatternFormatter instance for integer value using
    * <code>IntegerStringConverter</code> and specified pattern
    * 
@@ -380,6 +531,21 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    */
   public static XPatternFormatter<Long> Long() {
     return Long(DEFAULT_LONG_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of long value using <code>LongStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
+   * @return XPatternFormatter instance
+   * @see LongStringConverter
+   */
+  public static XPatternFormatter<Long> Long(boolean signed, int numbers) {
+    return Long(getNumericPattern(signed, numbers, 0));
   }
 
   /**
@@ -408,6 +574,21 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of big integer value using <code>BigIntegerStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers
+   * @return XPatternFormatter instance
+   * @see BigIntegerStringConverter
+   */
+  public static XPatternFormatter<BigInteger> BigInteger(boolean signed, int numbers) {
+    return BigInteger(getNumericPattern(signed, numbers, 0));
+  }
+
+  /**
    * Create a new XPatternFormatter instance for big integer value using
    * <code>BigIntegerStringConverter</code> and specified pattern
    * 
@@ -421,6 +602,48 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create a new XPatternFormatter instance for float value using
+   * <code>FloatStringConverter</code> and default float pattern
+   * 
+   * @return XPatternFormatter instance
+   * @see FloatStringConverter
+   * @see #DEFAULT_FLOAT_PATTERN
+   */
+  public static XPatternFormatter<Float> Float() {
+    return Float(DEFAULT_FLOAT_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of float value using <code>FloatStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see FloatStringConverter
+   */
+  public static XPatternFormatter<Float> Float(boolean signed, int numbers, int decimals) {
+    return Float(getNumericPattern(signed, numbers, decimals));
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for float value using
+   * <code>FloatStringConverter</code> and specified pattern
+   * 
+   * @param pattern
+   *          the regular expression pattern
+   * @return XPatternFormatter instance
+   * @see FloatStringConverter
+   */
+  public static XPatternFormatter<Float> Float(String pattern) {
+    return new XPatternFormatter<>(new FloatStringConverter(), pattern);
+  }
+
+  /**
    * Create a new XPatternFormatter instance for double value using
    * <code>DoubleStringConverter</code> and default double pattern
    * 
@@ -430,6 +653,23 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    */
   public static XPatternFormatter<Double> Double() {
     return Double(DEFAULT_DOUBLE_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of double value using <code>DoubleStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see DoubleStringConverter
+   */
+  public static XPatternFormatter<Double> Double(boolean signed, int numbers, int decimals) {
+    return Double(getNumericPattern(signed, numbers, decimals));
   }
 
   /**
@@ -458,6 +698,24 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
+   * Create a new XPatternFormatter instance for specified signed option and max numbers
+   * of big decimal value using <code>BigDecimalStringConverter</code>
+   * 
+   * @param signed
+   *          signed option
+   * @param numbers
+   *          max numbers include decimals
+   * @param decimals
+   *          max decimals
+   * @return XPatternFormatter instance
+   * @see BigDecimalStringConverter
+   */
+  public static XPatternFormatter<BigDecimal> BigDecimal(boolean signed, int numbers,
+      int decimals) {
+    return BigDecimal(getNumericPattern(signed, numbers, decimals));
+  }
+
+  /**
    * Create a new XPatternFormatter instance for big decimal value using
    * <code>BigDecimalStringConverter</code> and specified pattern
    * 
@@ -470,6 +728,147 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
     return new XPatternFormatter<>(new BigDecimalStringConverter(), pattern);
   }
 
+  private static String getNumericPattern(boolean signed, int numbers, int decimals) {
+    StringBuilder pattern = new StringBuilder();
+    if (signed) pattern.append("[+-]?");
+    pattern.append("\\d{1,").append(numbers).append("}");
+    if (decimals > 0)
+      pattern.append("\\.\\d{").append(decimals).append("}");
+    return pattern.toString();
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date value using
+   * <code>DateStringConverter</code> with default date format and pattern
+   * 
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_DATE_FORMAT
+   * @see #DEFAULT_DATE_PATTERN
+   */
+  public static XPatternFormatter<Date> DATE() {
+    return DATE(DEFAULT_DATE_FORMAT, DEFAULT_DATE_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date value using
+   * <code>DateStringConverter</code> with specify format and no pattern restriction,
+   * usually for read-only field
+   * 
+   * @param format
+   *          date format
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_DATE_FORMAT
+   * @see #DEFAULT_DATE_PATTERN
+   */
+  public static XPatternFormatter<Date> DATE(String format) {
+    return DATE(format, null);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date value using
+   * <code>DateStringConverter</code> with specified format and pattern
+   * 
+   * @param format
+   *          the date format string
+   * @param pattern
+   *          the regular expression pattern
+   * @return XPatternFormatter instance
+   * @see Date
+   */
+  public static XPatternFormatter<Date> DATE(String format, String pattern) {
+    return new XPatternFormatter<>(new DateStringConverter(format), pattern);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for time value using
+   * <code>TimeStringConverter</code> with default time format and pattern
+   * 
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_TIME_FORMAT
+   * @see #DEFAULT_TIME_PATTERN
+   */
+  public static XPatternFormatter<Date> TIME() {
+    return TIME(DEFAULT_TIME_FORMAT, DEFAULT_TIME_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for time value using
+   * <code>TimeStringConverter</code> with specify format and no pattern restriction,
+   * usually for read-only field
+   * 
+   * @param format
+   *          time format
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_TIME_FORMAT
+   * @see #DEFAULT_TIME_PATTERN
+   */
+  public static XPatternFormatter<Date> TIME(String format) {
+    return TIME(format, null);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for time value using
+   * <code>TimeStringConverter</code> with specified format and pattern
+   * 
+   * @param format
+   *          the time format string
+   * @param pattern
+   *          the regular expression pattern
+   * @return XPatternFormatter instance
+   * @see Date
+   */
+  public static XPatternFormatter<Date> TIME(String format, String pattern) {
+    return new XPatternFormatter<>(new DateStringConverter(format), pattern);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date time value using <code>Date</code>
+   * with default format and pattern
+   * 
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_DATETIME_FORMAT
+   * @see #DEFAULT_DATETIME_PATTERN
+   */
+  public static XPatternFormatter<Date> DATETIME() {
+    return DATETIME(DEFAULT_DATETIME_FORMAT, DEFAULT_DATETIME_PATTERN);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date time value using
+   * <code>Date</code>with specify format and no pattern restriction, usually for
+   * read-only field
+   * 
+   * @param format
+   *          date time format
+   * @return XPatternFormatter instance
+   * @see Date
+   * @see #DEFAULT_DATETIME_FORMAT
+   * @see #DEFAULT_DATETIME_PATTERN
+   */
+  public static XPatternFormatter<Date> DATETIME(String format) {
+    return DATETIME(format, null);
+  }
+
+  /**
+   * Create a new XPatternFormatter instance for date time value using <code>Date</code>
+   * with specify format and pattern
+   * 
+   * @param format
+   *          the date time format string
+   * @param pattern
+   *          the regular expression pattern
+   * @return XPatternFormatter instance
+   * @see Date
+   */
+  public static XPatternFormatter<Date> DATETIME(String format, String pattern) {
+    return new XPatternFormatter<>(new DateStringConverter(format), pattern);
+  }
+
   /**
    * Create a new XPatternFormatter instance for date value using
    * <code>DateStringConverter</code> with default date format and pattern
@@ -479,8 +878,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_DATE_FORMAT
    * @see #DEFAULT_DATE_PATTERN
    */
-  public static XPatternFormatter<LocalDate> DATE() {
-    return DATE(DEFAULT_DATE_FORMAT, DEFAULT_DATE_PATTERN);
+  public static XPatternFormatter<LocalDate> LOCALDATE() {
+    return LOCALDATE(DEFAULT_DATE_FORMAT, DEFAULT_DATE_PATTERN);
   }
 
   /**
@@ -495,8 +894,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_DATE_FORMAT
    * @see #DEFAULT_DATE_PATTERN
    */
-  public static XPatternFormatter<LocalDate> DATE(String format) {
-    return DATE(format, null);
+  public static XPatternFormatter<LocalDate> LOCALDATE(String format) {
+    return LOCALDATE(format, null);
   }
 
   /**
@@ -510,8 +909,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @return XPatternFormatter instance
    * @see LocalDateStringConverter
    */
-  public static XPatternFormatter<LocalDate> DATE(String format, String pattern) {
-    return new XPatternFormatter<>(XDateTimeConverter.DATE(format), pattern);
+  public static XPatternFormatter<LocalDate> LOCALDATE(String format, String pattern) {
+    return new XPatternFormatter<>(XJavaTimeConverter.DATE(format), pattern);
   }
 
   /**
@@ -523,8 +922,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_TIME_FORMAT
    * @see #DEFAULT_TIME_PATTERN
    */
-  public static XPatternFormatter<LocalTime> TIME() {
-    return TIME(DEFAULT_TIME_FORMAT, DEFAULT_TIME_PATTERN);
+  public static XPatternFormatter<LocalTime> LOCALTIME() {
+    return LOCALTIME(DEFAULT_TIME_FORMAT, DEFAULT_TIME_PATTERN);
   }
 
   /**
@@ -539,8 +938,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_TIME_FORMAT
    * @see #DEFAULT_TIME_PATTERN
    */
-  public static XPatternFormatter<LocalTime> TIME(String format) {
-    return TIME(format, null);
+  public static XPatternFormatter<LocalTime> LOCALTIME(String format) {
+    return LOCALTIME(format, null);
   }
 
   /**
@@ -554,8 +953,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @return XPatternFormatter instance
    * @see LocalTimeStringConverter
    */
-  public static XPatternFormatter<LocalTime> TIME(String format, String pattern) {
-    return new XPatternFormatter<>(XDateTimeConverter.TIME(format), pattern);
+  public static XPatternFormatter<LocalTime> LOCALTIME(String format, String pattern) {
+    return new XPatternFormatter<>(XJavaTimeConverter.TIME(format), pattern);
   }
 
   /**
@@ -567,8 +966,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_DATETIME_FORMAT
    * @see #DEFAULT_DATETIME_PATTERN
    */
-  public static XPatternFormatter<LocalDateTime> DATETIME() {
-    return DATETIME(DEFAULT_DATETIME_FORMAT, DEFAULT_DATETIME_PATTERN);
+  public static XPatternFormatter<LocalDateTime> LOCALDATETIME() {
+    return LOCALDATETIME(DEFAULT_DATETIME_FORMAT, DEFAULT_DATETIME_PATTERN);
   }
 
   /**
@@ -583,8 +982,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @see #DEFAULT_DATETIME_FORMAT
    * @see #DEFAULT_DATETIME_PATTERN
    */
-  public static XPatternFormatter<LocalDateTime> DATETIME(String format) {
-    return DATETIME(format, null);
+  public static XPatternFormatter<LocalDateTime> LOCALDATETIME(String format) {
+    return LOCALDATETIME(format, null);
   }
 
   /**
@@ -598,8 +997,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @return XPatternFormatter instance
    * @see LocalDateTimeStringConverter
    */
-  public static XPatternFormatter<LocalDateTime> DATETIME(String format, String pattern) {
-    return new XPatternFormatter<>(XDateTimeConverter.DATETIME(format), pattern);
+  public static XPatternFormatter<LocalDateTime> LOCALDATETIME(String format, String pattern) {
+    return new XPatternFormatter<>(XJavaTimeConverter.DATETIME(format), pattern);
   }
 
   private V defaultValue;

@@ -129,4 +129,20 @@ public class XObjectUtils {
     }
     return null;
   }
+
+  /**
+   * Get default value for specified type. default primitive value or null if the type if
+   * not a primitive type.
+   * 
+   * @param <T>
+   *          generic type
+   * @param type
+   *          the value type
+   * @return default value for the type
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T getDefaultValue(Class<T> type) {
+    if (type == null || !type.isPrimitive()) return null;
+    return (T) Array.get(Array.newInstance(type, 1), 0);
+  }
 }

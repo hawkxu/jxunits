@@ -9,29 +9,33 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.beans.value.WeakChangeListener;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableListBase;
+import javafx.collections.transformation.TransformationList;
 import javafx.scene.control.TableColumn.SortType;
 import win.zqxu.jxunits.jfx.XSummaryComber.XSummaryOrder;
 import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
 import win.zqxu.jxunits.jre.XObjectUtils;
 
 /**
- * list support filter and summary calculation
+ * list support sorting, filter and summary calculation, using methods of comber to set
+ * sort orders and filter predicates, etc.
+ * 
+ * <p>
+ * when set to {@link XSummaryTableView}, the comber property will bind to the table, do
+ * not change comber of the list, include any properties of comber
+ * </p>
  * 
  * @author zqxu
  */
-public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
-    implements ObservableList<XSummaryItem<S>> {
+public class XSummaryList<S> extends TransformationList<XSummaryItem<S>, S> {
   private ItemComparator<S> itemComparator;
   private List<XSummaryOrder<S, ?>> orders;
   private List<XSummarySummer<S, ?>> summers;
@@ -39,13 +43,17 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
   private SummaryItemImpl<S>[] items;
   private int size;
 
-  public XSummaryList() {
-    this(FXCollections.observableArrayList());
+  public XSummaryList(ObservableList<S> source) {
+    super(source);
+    setComber(new XSummaryComber<>());
   }
 
-  public XSummaryList(ObservableList<S> source) {
-    setSource(source);
-    setComber(new XSummaryComber<>());
+  /**
+   * Get source index for the index, returns -1 if there is a summary row at the index
+   */
+  @Override
+  public int getSourceIndex(int index) {
+    return get(index).getSourceIndex();
   }
 
   @Override
@@ -60,65 +68,20 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     return size;
   }
 
+  /**
+   * Determine whether is a summary row at the index
+   * 
+   * @param index
+   *          the index
+   * @return true or false
+   */
   public boolean isSummary(int index) {
     return get(index).isSummary();
   }
 
-  private ListChangeListener<S> sourceListener = c -> sourceChanged(c);
-  private ObjectProperty<ObservableList<S>> source =
-      new ObjectPropertyBase<ObservableList<S>>() {
-        private WeakReference<ObservableList<S>> oldSourceRef;
-
-        @Override
-        public Object getBean() {
-          return XSummaryList.this;
-        }
-
-        @Override
-        public String getName() {
-          return "source";
-        }
-
-        @Override
-        protected void invalidated() {
-          ObservableList<S> oldList = oldSourceRef == null ? null : oldSourceRef.get();
-          ObservableList<S> newList = get();
-          if (newList == oldList) return;
-          if (oldList != null) oldList.removeListener(sourceListener);
-          doFullGeneration();
-          if (newList != null) newList.addListener(sourceListener);
-          oldSourceRef = newList == null ? null : new WeakReference<>(newList);
-        }
-      };
-
-  public final ObjectProperty<ObservableList<S>> sourceProperty() {
-    return source;
-  }
-
-  /**
-   * get source list
-   * 
-   * @return the source list
-   */
-  public final ObservableList<S> getSource() {
-    return source.get();
-  }
-
-  /**
-   * Set source list
-   * 
-   * @param source
-   *          the source list
-   */
-  public final void setSource(ObservableList<S> source) {
-    this.source.set(source);
-  }
-
   private ChangeListener<Predicate<S>> predicateListener = (v, o, n) -> handlePredicateChange();
-  private ChangeListener<List<XSummaryOrder<S, ?>>> ordersListener =
-      (v, o, n) -> handleOrdersChange();
-  private ChangeListener<List<XSummarySummer<S, ?>>> summersListener =
-      (v, o, n) -> handleSummersChange();
+  private InvalidationListener ordersListener = v -> handleOrdersChange();
+  private InvalidationListener summersListener = v -> handleSummersChange();
   private ChangeListener<Boolean> totalListener = (v, o, n) -> handleTotalProduceChange();
   private ObjectProperty<XSummaryComber<S>> comber =
       new ObjectPropertyBase<XSummaryComber<S>>() {
@@ -141,8 +104,8 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
           if (oldComber == newComber) return;
           if (oldComber != null) {
             oldComber.predicateProperty().removeListener(predicateListener);
-            oldComber.ordersProperty().removeListener(ordersListener);
-            oldComber.summersProperty().removeListener(summersListener);
+            oldComber.getOrders().removeListener(ordersListener);
+            oldComber.getSummers().removeListener(summersListener);
             oldComber.totalProduceProperty().removeListener(totalListener);
           }
           buildItemComparator();
@@ -152,8 +115,8 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
           doFullGeneration();
           if (newComber != null) {
             newComber.predicateProperty().addListener(predicateListener);
-            newComber.ordersProperty().addListener(ordersListener);
-            newComber.summersProperty().addListener(summersListener);
+            newComber.getOrders().addListener(ordersListener);
+            newComber.getSummers().addListener(summersListener);
             newComber.totalProduceProperty().addListener(totalListener);
           }
         }
@@ -239,7 +202,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
   }
 
   private void doFullGeneration() {
-    ObservableList<S> source = getSource();
+    ObservableList<? extends S> source = getSource();
     Predicate<S> predicate = getPredicate();
     beginChange();
     try {
@@ -339,7 +302,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     }
   }
 
-  private void sourceChanged(Change<? extends S> c) {
+  protected void sourceChanged(Change<? extends S> c) {
     beginChange();
     try {
       while (c.next()) {
@@ -424,6 +387,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     if (orders != null) {
       for (XSummaryOrder<S, ?> order : orders) {
         ObservableValue<?> ov = order.getObservableValue(sourceItem);
+        if (ov == null) continue;
         item.orderValues.put(order, ov);
         ov.addListener(getOrderValueListener(item.sourceIndex, order));
       }
@@ -431,6 +395,7 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     if (summers != null) {
       for (XSummarySummer<S, ?> summer : summers) {
         ObservableValue<?> ov = summer.getObservableValue(sourceItem);
+        if (ov == null) return;
         item.summerValues.put(summer, ov);
         ov.addListener(getSummerValueListener(item.sourceIndex, summer));
       }
@@ -468,8 +433,10 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
         Object value;
         if (forcedOrderValues != null && forcedOrderValues.containsKey(group))
           value = forcedOrderValues.get(group);
-        else
-          value = group.getObservableValue(sourceItem).getValue();
+        else {
+          ObservableValue<?> observable = group.getObservableValue(sourceItem);
+          value = observable == null ? null : observable.getValue();
+        }
         subtotal.orderValues.put(group, new SimpleObjectProperty<>(value));
       }
       updateSummary(subtotal, count, from, differenceValues);
@@ -481,7 +448,9 @@ public class XSummaryList<S> extends ObservableListBase<XSummaryItem<S>>
     Map<XSummarySummer<S, ?>, Object> differenceValues = new HashMap<>();
     for (XSummarySummer<S, ?> summer : summers) {
       XSummarySummer<S, Object> s2 = (XSummarySummer<S, Object>) summer;
-      Object value = s2.getObservableValue(sourceItem).getValue();
+      ObservableValue<Object> observable = s2.getObservableValue(sourceItem);
+      if (observable == null) continue;
+      Object value = observable.getValue();
       if (add)
         differenceValues.put(summer, s2.sum(null, value));
       else

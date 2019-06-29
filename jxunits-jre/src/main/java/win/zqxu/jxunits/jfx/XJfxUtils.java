@@ -11,11 +11,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.event.Event;
+import javafx.geometry.BoundingBox;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -25,6 +29,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -45,6 +50,7 @@ import win.zqxu.jxunits.jre.XResource;
 
 public class XJfxUtils {
   private static final Map<ButtonType, Image> BUTTON_ICONS = new HashMap<>();
+  private static final Logger logger = Logger.getLogger(XJfxUtils.class.getName());
 
   static {
     setButtonIcon(ButtonType.OK, XImageLoader.get("accept.png"));
@@ -330,8 +336,17 @@ public class XJfxUtils {
       }
       final Throwable real = cause == null ? ex : cause;
       // to avoid animation and layout processing
-      Platform.runLater(() -> showException(null, null, real));
+      Platform.runLater(() -> showUncaughtException(real));
     });
+  }
+
+  private static void showUncaughtException(Throwable cause) {
+    try {
+      showException(null, null, cause);
+    } catch (Throwable ex) {
+      logger.log(Level.WARNING, "exception in showUncaughtException", ex);
+      logger.log(Level.WARNING, "original uncaughted exception", cause);
+    }
   }
 
   /**
@@ -660,6 +675,152 @@ public class XJfxUtils {
     } catch (Exception ex) {
       // completely ignored any exceptions
     }
+  }
+
+  /**
+   * Scroll to make the node visible if needed, no operation if the node not in the scroll
+   * pane
+   * 
+   * @param pane
+   *          the scroll pane
+   * @param node
+   *          the node to make visible
+   */
+  public static void scrollToVisible(ScrollPane pane, Node node) {
+    scrollToVertical(pane, node);
+    scrollToHorizontal(pane, node);
+  }
+
+  /**
+   * Scroll vertical to make the node visible if needed, no operation if the node not in
+   * the scroll pane
+   * 
+   * @param pane
+   *          the scroll pane
+   * @param node
+   *          the node to make visible
+   */
+  public static void scrollToVertical(ScrollPane pane, Node node) {
+    new Thread(() -> scrollToNodeV(pane, node)).start();
+  }
+
+  /**
+   * Scroll horizontal to make the node visible if needed, no operation if the node not in
+   * the scroll pane
+   * 
+   * @param pane
+   *          the scroll pane
+   * @param node
+   *          the node to make visible
+   */
+  public static void scrollToHorizontal(ScrollPane pane, Node node) {
+    new Thread(() -> scrollToNodeH(pane, node)).start();
+  }
+
+  private static void scrollToNodeV(ScrollPane pane, Node node) {
+    // getBounds returns zero if called too soon after node added
+    // and sometimes it throws ArrayIndexOutOfBoundsException
+    int tryCounter = 0;
+    while (tryCounter++ < 10) {
+      try {
+        Thread.sleep(100); // wait 100 milliseconds first
+        Node content = pane.getContent();
+        Bounds bounds = getBoundsInRoot(content, node);
+        if (bounds.getMaxY() == 0) return;
+        double vVal = pane.getVvalue(), vMax = pane.getVmax();
+        double yMin = bounds.getMinY(), yMax = bounds.getMaxY();
+        double cHeight = content.getBoundsInLocal().getHeight();
+        double vHeight = pane.getViewportBounds().getHeight();
+        double vTop = vMax * yMin / (cHeight - vHeight);
+        double vBot = vMax * (yMax - vHeight) / (cHeight - vHeight);
+        if (vVal < vTop && vVal > vBot) return;
+        Platform.runLater(() -> pane.setVvalue(vVal > vBot ? vTop : vBot));
+        return; // return after successfully scrolled
+      } catch (Exception ex) {
+        // ignore any exception to continue try scroll
+      }
+    }
+  }
+
+  private static void scrollToNodeH(ScrollPane pane, Node node) {
+    // getBounds returns zero if called too soon after node added
+    // and sometimes it throws ArrayIndexOutOfBoundsException
+    int tryCounter = 0;
+    while (tryCounter++ < 10) {
+      try {
+        Thread.sleep(100); // wait 100 milliseconds first
+        Node content = pane.getContent();
+        Bounds bounds = getBoundsInRoot(content, node);
+        if (bounds.getMaxY() == 0) continue;
+        double hVal = pane.getHvalue(), hMax = pane.getHmax();
+        double xMin = bounds.getMinX(), xMax = bounds.getMaxX();
+        double cWidth = content.getBoundsInLocal().getWidth();
+        double vWidth = pane.getViewportBounds().getWidth();
+        double vLft = hMax * xMin / (cWidth - vWidth);
+        double vRht = hMax * (xMax - vWidth) / (cWidth - vWidth);
+        if (hVal < vLft && hVal > vRht) return;
+        Platform.runLater(() -> pane.setHvalue(hVal > vLft ? vRht : vLft));
+        return; // return after successfully scrolled
+      } catch (Exception ex) {
+        // ignore any exception to continue try scroll
+      }
+    }
+  }
+
+  private static Bounds getBoundsInRoot(Node root, Node node) {
+    Bounds bounds = node.getBoundsInParent();
+    // if returns zero just return to next try
+    if (bounds.getMaxY() == 0) return bounds;
+    double minX = bounds.getMinX();
+    double minY = bounds.getMinY();
+    double width = bounds.getWidth();
+    double height = bounds.getHeight();
+    while (true) {
+      node = node.getParent();
+      if (node == null || node == root) break;
+      bounds = node.getBoundsInParent();
+      minX += bounds.getMinX();
+      minY += bounds.getMinY();
+    }
+    return node == null ? new BoundingBox(0, 0, 0, 0)
+        : new BoundingBox(minX, minY, width, height);
+  }
+
+  /**
+   * Determine whether the node is focus owner, that means the node or its descendant has
+   * focus.
+   * 
+   * @param node
+   *          the node
+   * @return true or false
+   */
+  public static boolean isFocusOwner(Node node) {
+    return isFocusOwner(node, false);
+  }
+
+  /**
+   * Determine whether the node is focus ancestor, that means itself not has focus but its
+   * descendant has focus.
+   * 
+   * @param node
+   *          the node
+   * @return true or false
+   */
+  public static boolean isFocusAncestor(Node node) {
+    return isFocusOwner(node, true);
+  }
+
+  private static boolean isFocusOwner(Node node, boolean descendant) {
+    Scene scene = node.getScene();
+    if (scene == null) return false;
+    Node focused = scene.getFocusOwner();
+    if (descendant && focused == node)
+      return false;
+    while (focused != null) {
+      if (focused == node) return true;
+      focused = focused.getParent();
+    }
+    return false;
   }
 
   private static class ResultProxy<V> {

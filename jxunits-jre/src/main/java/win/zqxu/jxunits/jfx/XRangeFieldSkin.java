@@ -1,5 +1,7 @@
 package win.zqxu.jxunits.jfx;
 
+import java.util.Map;
+
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.css.PseudoClass;
@@ -34,6 +36,8 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
     super(control);
     this.control = control;
     initChildren();
+    consumeMouseEvents(false);
+    handleControlFocused();
     bindRangeControl();
   }
 
@@ -59,6 +63,32 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
 
   protected XValueField<T> createValueField() {
     return new XValueField<>();
+  }
+
+  private void handleControlFocused() {
+    handleControlFocused(control.isFocused());
+    control.focusedProperty().addListener((v, o, n) -> {
+      handleControlFocused(n);
+    });
+    final ChangeListener<Boolean> handler = (v, o, n) -> {
+      Boolean focused = XJfxUtils.isFocusOwner(control);
+      control.getProperties().put("FOCUSED", focused);
+    };
+    btnOption.focusedProperty().addListener(handler);
+    xvfLow.focusedProperty().addListener(handler);
+    xvfHigh.focusedProperty().addListener(handler);
+    btnMultiple.focusedProperty().addListener(handler);
+  }
+
+  private void handleControlFocused(Boolean focused) {
+    Map<Object, Object> props = control.getProperties();
+    Object focusLow = props.remove("FOCUS-LOW");
+    if (focused && !XJfxUtils.isFocusAncestor(control)) {
+      if (focusLow != null || btnOption.isDisable())
+        xvfLow.requestFocus();
+      else
+        btnOption.requestFocus();
+    }
   }
 
   private void bindRangeControl() {

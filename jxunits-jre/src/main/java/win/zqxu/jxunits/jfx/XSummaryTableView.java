@@ -9,10 +9,11 @@ import java.util.function.Predicate;
 
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -26,19 +27,16 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
  * the XSummaryTableView designed to support automatic calculate and show sub-total and
  * summary rows.
  * <p>
- * the items property was bound to summaryItems, do not unbound it.
+ * the items should be {@link XSummaryList} type. usually set items like <b>setItems(new
+ * XSummaryList&lt;&gt;(source))</b>
  * </p>
  * <p>
- * the comber property of summaryItems was bound to internal comber in table, do not
- * unbound it.
+ * the comber property of <code>XSummaryList</code> was bound to internal comber in table,
+ * do not unbound it. and do not change any property of the comber.
  * </p>
  * <p>
- * use {@link #setSourceItems(ObservableList)} to set items instead of
- * {@link #setItems(ObservableList)}.
- * </p>
- * <p>
- * Because the summaryItems was read only, all changes must be made through the source
- * items.
+ * Because the <code>XSummaryList</code> was read only, all changes must be made through
+ * the source list.
  * </p>
  * <p>
  * Please do not call {@link #setSortPolicy(javafx.util.Callback)} to change the sort
@@ -53,12 +51,9 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
  * <li>{@link XSummaryTableColumn#setSortType(TableColumn.SortType)}</li>
  * <li>{@link XSummaryTableColumn#setComparator(Comparator)}</li>
  * <li>{@link XSummaryTableColumn#setSubtotalGroup(boolean)}</li>
- * <li>{@link XSummaryTableColumn#setSummer(XSummaryTableColumn.SummaryColumnSummer)}</li>
- * <li>{@link #getPredicates()}</li>
- * <li>{@link #getSortOrder()}</li>
- * <li>{@link #getSummers()}</li>
+ * <li>{@link XSummaryTableColumn#setSummaryEnabled(boolean)}</li>
+ * <li>{@link XSummaryTableColumn#setSummer(XSummaryComber.XSummarySummer)}</li>
  * <li>{@link #setTotalRowProduce(boolean)}</li>
- * <li>{@link #setSourceItems(ObservableList)}</li>
  * </ul>
  * <p>
  * for batch update summary list, call {@link #beginUpdateSummary()} and
@@ -78,31 +73,286 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
  * @author zqxu
  */
 public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
+
   public XSummaryTableView() {
     this(FXCollections.observableArrayList());
   }
 
   public XSummaryTableView(ObservableList<S> items) {
+    super(new XSummaryList<>(items));
     getStyleClass().add("x-summary-table");
     setSortPolicy(table -> true); // just do nothing
     setRowFactory(item -> new XSummaryTableRow<>());
-    getPredicates().addListener((ListChangeListener<XSummaryTableColumn<S, ?>>) c -> {
-      handlePredicatesChange(c);
-    });
-    getSortOrder().addListener((ListChangeListener<TableColumn<XSummaryItem<S>, ?>>) c -> {
-      handleOrdersChange(c);
-    });
-    getSummers().addListener((ListChangeListener<XSummaryTableColumn<S, ?>>) c -> {
-      handleSummersChange(c);
-    });
-    totalRowProduce.addListener((v, o, n) -> updateTotalRowProduce());
-    setSourceItems(items);
-    summaryItems.comberProperty().bind(comber);
-    summaryItems.addListener((ListChangeListener<XSummaryItem<S>>) c -> {
-      handleSummaryItemsChanged(c);
-    });
-    itemsProperty().bind(Bindings.createObjectBinding(() -> summaryItems));
+    getSortOrder().addListener(sortOrderHandler);
+    getColumns().addListener(columnsHandler);
+    handleItemsChanged(null, getItems());
+    itemsProperty().addListener((v, o, n) -> handleItemsChanged(o, n));
   }
+
+  /**
+   * disable summary row edit
+   */
+  @Override
+  public void edit(int row, TableColumn<XSummaryItem<S>, ?> column) {
+    if (row >= 0 && getItems().get(row).isSummary())
+      super.edit(-1, null);
+    else
+      super.edit(row, column);
+  }
+
+  private ObservableList<Predicate<S>> predicates = FXCollections.observableArrayList();
+
+  /**
+   * Get unmodifiable predicates, follow columns change
+   * 
+   * @return unmodifiable predicates
+   */
+  public ObservableList<Predicate<S>> getUnmodifiablePredicates() {
+    return FXCollections.unmodifiableObservableList(predicates);
+  }
+
+  /**
+   * Get unmodifiable orders, follow columns change
+   * 
+   * @return unmodifiable orders
+   */
+  public final ObservableList<XSummaryOrder<S, ?>> getUnmodifiableOrders() {
+    return FXCollections.unmodifiableObservableList(comber.get().getOrders());
+  }
+
+  /**
+   * Get unmodifiable summers, follow columns change
+   * 
+   * @return unmodifiable summers
+   */
+  public ObservableList<XSummarySummer<S, ?>> getUnmodifiableSummers() {
+    return FXCollections.unmodifiableObservableList(comber.get().getSummers());
+  }
+
+  private BooleanProperty totalRowProduce = new SimpleBooleanProperty(
+      this, "totalRowProduce", true) {
+    @Override
+    protected void invalidated() {
+      if (updateLocker != 0) comber.get().setTotalProduce(get());
+    }
+  };
+
+  /**
+   * total row produce property, default value is true
+   * 
+   * @return total row produce property
+   */
+  public final BooleanProperty totalRowProduceProperty() {
+    return totalRowProduce;
+  }
+
+  /**
+   * Determine whether produce total row, default is true
+   * 
+   * @return true or false
+   */
+  public final boolean isTotalRowProduce() {
+    return totalRowProduce.get();
+  }
+
+  /**
+   * Set whether produce total row, default is true
+   * 
+   * @param totalRowProduce
+   *          true or false
+   */
+  public final void setTotalRowProduce(final boolean totalRowProduce) {
+    this.totalRowProduce.set(totalRowProduce);
+  }
+
+  private ObjectProperty<XSummaryComber<S>> comber = new SimpleObjectProperty<>(
+      this, "comber", rebuildComber());
+
+  private XSummaryComber<S> rebuildComber() {
+    XSummaryComber<S> building = new XSummaryComber<>();
+    rebuildPredicates();
+    building.setPredicate(buildComberPredicate());
+    building.getOrders().setAll(buildComberOrders());
+    building.getSummers().setAll(buildComberSummers());
+    building.setTotalProduce(isTotalRowProduce());
+    return building;
+  }
+
+  private void rebuildPredicates() {
+    predicates.clear();
+    XSummaryTableColumn<S, ?> column;
+    for (TableColumn<XSummaryItem<S>, ?> loop : getColumns()) {
+      if (!(loop instanceof XSummaryTableColumn)) continue;
+      column = (XSummaryTableColumn<S, ?>) loop;
+      Predicate<S> predicate = column.getItemPredicate();
+      if (predicate != null) predicates.add(predicate);
+    }
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private Predicate<S> buildComberPredicate() {
+    if (predicates.isEmpty()) return null;
+    Predicate combine = predicates.get(0);
+    for (int i = 1; i < predicates.size(); i++)
+      combine = combine.and(predicates.get(i));
+    return (Predicate<S>) combine;
+  }
+
+  private List<XSummaryOrder<S, ?>> buildComberOrders() {
+    List<XSummaryOrder<S, ?>> orders = new ArrayList<>();
+    for (TableColumn<XSummaryItem<S>, ?> column : getSortOrder()) {
+      if (column instanceof XSummaryTableColumn)
+        orders.add(((XSummaryTableColumn<S, ?>) column).getOrder());
+    }
+    return orders;
+  }
+
+  private List<XSummarySummer<S, ?>> buildComberSummers() {
+    List<XSummarySummer<S, ?>> summers = new ArrayList<>();
+    for (TableColumn<XSummaryItem<S>, ?> column : getLeafColumns()) {
+      if (column instanceof XSummaryTableColumn)
+        summers.add(((XSummaryTableColumn<S, ?>) column).getSummer());
+    }
+    return summers;
+  }
+
+  private List<TableColumn<XSummaryItem<S>, ?>> getLeafColumns() {
+    List<TableColumn<XSummaryItem<S>, ?>> leafColumns = new ArrayList<>();
+    fillLeafColumns(leafColumns, getColumns());
+    return leafColumns;
+  }
+
+  private void fillLeafColumns(List<TableColumn<XSummaryItem<S>, ?>> leafColumns,
+      List<TableColumn<XSummaryItem<S>, ?>> columns) {
+    for (TableColumn<XSummaryItem<S>, ?> column : columns) {
+      if (column.getColumns().isEmpty())
+        leafColumns.add(column);
+      else
+        fillLeafColumns(leafColumns, column.getColumns());
+    }
+  }
+
+  private int updateLocker = 0;
+
+  /**
+   * begin batch change summary settings, like filters, orders, etc.
+   */
+  public final void beginUpdateSummary() {
+    updateLocker++;
+  }
+
+  /**
+   * end batch change summary settings, invoke in pairs with {@link #beginUpdateSummary()}
+   */
+  public final void endUpdateSummary() {
+    if (updateLocker == 0)
+      throw new IllegalStateException("no match beginUpdateSummary found");
+    if (--updateLocker == 0) comber.set(rebuildComber());
+  }
+
+  private InvalidationListener sortOrderHandler = v -> {
+    if (updateLocker == 0) comber.get().getOrders().setAll(buildComberOrders());
+  };
+
+  private ListChangeListener<TableColumn<XSummaryItem<S>, ?>> columnsHandler = c -> {
+    boolean changed = false;
+    while (c.next()) {
+      changed = true;
+      if (c.wasAdded()) handleColumnsAdded(c.getAddedSubList());
+      if (c.wasRemoved()) handleColumnsRemoved(c.getRemoved());
+    }
+    if (changed) comber.set(rebuildComber());
+  };
+
+  private void handleColumnsAdded(List<? extends TableColumn<XSummaryItem<S>, ?>> added) {
+    for (TableColumn<XSummaryItem<S>, ?> column : added) {
+      if (column instanceof XSummaryTableColumn)
+        installSummaryColumnListener((XSummaryTableColumn<S, ?>) column);
+    }
+  }
+
+  private void handleColumnsRemoved(List<? extends TableColumn<XSummaryItem<S>, ?>> removed) {
+    for (TableColumn<XSummaryItem<S>, ?> column : removed) {
+      if (column instanceof XSummaryTableColumn)
+        uninstallSummaryColumnListener((XSummaryTableColumn<S, ?>) column);
+    }
+  }
+
+  private void installSummaryColumnListener(XSummaryTableColumn<S, ?> column) {
+    column.itemPredicateProperty().addListener(getColumnPredicateHandler(column));
+    column.orderProperty().addListener(getColumnOrderHandler(column));
+    column.summaryEnabledProperty().addListener(getColumnSummaryHandler(column));
+    column.summerProperty().addListener(getColumnSummerHandler(column));
+  }
+
+  private void uninstallSummaryColumnListener(XSummaryTableColumn<S, ?> column) {
+    column.itemPredicateProperty().removeListener(columnPredicateHandlers.remove(column));
+    column.orderProperty().removeListener(columnOrderHandlers.remove(column));
+    column.summaryEnabledProperty().removeListener(columnSummaryHandlers.remove(column));
+    column.summerProperty().removeListener(columnSummerHandlers.remove(column));
+  }
+
+  private Map<Object, ChangeListener<Predicate<S>>> columnPredicateHandlers = new HashMap<>();
+  private Map<Object, ChangeListener<XSummaryOrder<S, ?>>> columnOrderHandlers = new HashMap<>();
+  private Map<Object, ChangeListener<Boolean>> columnSummaryHandlers = new HashMap<>();
+  private Map<Object, ChangeListener<XSummarySummer<S, ?>>> columnSummerHandlers = new HashMap<>();
+
+  private ChangeListener<Predicate<S>> getColumnPredicateHandler(Object column) {
+    if (!columnPredicateHandlers.containsKey(column)) {
+      columnPredicateHandlers.put(column, (v, o, n) -> {
+        if (updateLocker != 0) return;
+        if (o != null) predicates.remove(o);
+        if (n != null) predicates.add(n);
+        comber.get().setPredicate(buildComberPredicate());
+      });
+    }
+    return columnPredicateHandlers.get(column);
+  }
+
+  private ChangeListener<XSummaryOrder<S, ?>> getColumnOrderHandler(Object column) {
+    if (!columnOrderHandlers.containsKey(column)) {
+      columnOrderHandlers.put(column, (v, o, n) -> {
+        // if the column not in sort order, then the order
+        // change must be processed by sort order handler
+        if (updateLocker == 0 && getSortOrder().contains(column))
+          comber.get().getOrders().setAll(buildComberOrders());
+      });
+    }
+    return columnOrderHandlers.get(column);
+  }
+
+  private ChangeListener<Boolean> getColumnSummaryHandler(Object column) {
+    if (!columnSummaryHandlers.containsKey(column)) {
+      columnSummaryHandlers.put(column, (v, o, n) -> {
+        if (updateLocker == 0)
+          comber.get().getSummers().setAll(buildComberSummers());
+      });
+    }
+    return columnSummaryHandlers.get(column);
+  }
+
+  private ChangeListener<XSummarySummer<S, ?>> getColumnSummerHandler(Object column) {
+    if (!columnSummerHandlers.containsKey(column)) {
+      columnSummerHandlers.put(column, (v, o, n) -> {
+        if (updateLocker == 0)
+          comber.get().getSummers().setAll(buildComberSummers());
+      });
+    }
+    return columnSummerHandlers.get(column);
+  }
+
+  private void handleItemsChanged(ObservableList<XSummaryItem<S>> o,
+      ObservableList<XSummaryItem<S>> n) {
+    if (o != null) o.removeListener(summaryItemsChangedHandler);
+    if (o instanceof XSummaryList)
+      ((XSummaryList<S>) o).comberProperty().unbind();
+    if (n instanceof XSummaryList)
+      ((XSummaryList<S>) n).comberProperty().bind(comber);
+    if (n != null) n.addListener(summaryItemsChangedHandler);
+  }
+
+  private ListChangeListener<XSummaryItem<S>> summaryItemsChangedHandler =
+      c -> handleSummaryItemsChanged(c);
 
   private void handleSummaryItemsChanged(Change<? extends XSummaryItem<S>> c) {
     XSummaryItem<S> selected = getSelectionModel().getSelectedItem();
@@ -121,235 +371,6 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
     }
     final int restore = index;
     if (restore != -1) Platform.runLater(() -> getSelectionModel().select(restore));
-  }
-
-  private XSummaryList<S> summaryItems = new XSummaryList<>();
-
-  /**
-   * Get summary items, the summary items contains source items and summary records.
-   * 
-   * @return summary items
-   */
-  public final XSummaryList<S> getSummaryItems() {
-    return summaryItems;
-  }
-
-  /**
-   * Get source items contained in summary items
-   * 
-   * @return the source items
-   */
-  public final ObservableList<S> getSourceItems() {
-    return getSummaryItems().getSource();
-  }
-
-  /**
-   * Set source items to summary items
-   * 
-   * @param sourceItems
-   *          the source items
-   */
-  public final void setSourceItems(ObservableList<S> sourceItems) {
-    summaryItems.setSource(sourceItems);
-  }
-
-  /**
-   * disable summary row edit
-   */
-  @Override
-  public void edit(int row, TableColumn<XSummaryItem<S>, ?> column) {
-    if (row >= 0 && summaryItems.isSummary(row))
-      super.edit(-1, null);
-    else
-      super.edit(row, column);
-  }
-
-  private ObservableList<XSummaryTableColumn<S, ?>> summers = FXCollections.observableArrayList();
-
-  public ObservableList<XSummaryTableColumn<S, ?>> getSummers() {
-    return summers;
-  }
-
-  private ObservableList<XSummaryTableColumn<S, ?>> predicates =
-      FXCollections.observableArrayList();
-
-  public ObservableList<XSummaryTableColumn<S, ?>> getPredicates() {
-    return predicates;
-  }
-
-  private BooleanProperty totalRowProduce =
-      new SimpleBooleanProperty(this, "totalRowProduce", false);
-
-  public final BooleanProperty totalRowProduceProperty() {
-    return totalRowProduce;
-  }
-
-  public final boolean isTotalRowProduce() {
-    return totalRowProduce.get();
-  }
-
-  public final void setTotalRowProduce(final boolean totalRowProduce) {
-    this.totalRowProduce.set(totalRowProduce);
-  }
-
-  private int updateLocker = 0;
-
-  public final void beginUpdateSummary() {
-    updateLocker++;
-  }
-
-  public final void endUpdateSummary() {
-    if (updateLocker == 0)
-      throw new IllegalStateException("no match beginUpdateSummary found");
-    if (--updateLocker == 0) comber.set(buildSComber());
-  }
-
-  private ReadOnlyObjectWrapper<XSummaryComber<S>> comber =
-      new ReadOnlyObjectWrapper<>(this, "comber", buildSComber());
-
-  private XSummaryComber<S> buildSComber() {
-    XSummaryComber<S> comber = new XSummaryComber<>();
-    comber.setPredicate(buildPredicate());
-    comber.setOrders(buildOrders());
-    comber.setSummers(buildSummers());
-    comber.setTotalProduce(isTotalRowProduce());
-    return comber;
-  }
-
-  private Predicate<S> buildPredicate() {
-    Predicate<S> predicate = null;
-    for (XSummaryTableColumn<S, ?> column : predicates) {
-      Predicate<S> next = column.getColumnPredicate();
-      if (next == null) continue;
-      if (predicate == null)
-        predicate = next;
-      else
-        predicate = predicate.and(next);
-    }
-    return predicate;
-  }
-
-  private List<XSummaryOrder<S, ?>> buildOrders() {
-    List<XSummaryOrder<S, ?>> orders = new ArrayList<>();
-    ObservableList<TableColumn<XSummaryItem<S>, ?>> columns = getColumns();
-    for (TableColumn<XSummaryItem<S>, ?> column : getSortOrder()) {
-      if (column.isSortable() && columns.contains(column)
-          && column instanceof XSummaryTableColumn) {
-        XSummaryOrder<S, ?> order = ((XSummaryTableColumn<S, ?>) column).getOrder();
-        if (order != null) orders.add(order);
-      }
-    }
-    return orders;
-  }
-
-  private List<XSummarySummer<S, ?>> buildSummers() {
-    List<XSummarySummer<S, ?>> summers = new ArrayList<>();
-    ObservableList<TableColumn<XSummaryItem<S>, ?>> columns = getColumns();
-    for (XSummaryTableColumn<S, ?> column : getSummers()) {
-      if (columns.contains(column) && column instanceof XSummaryTableColumn) {
-        XSummarySummer<S, ?> summer = ((XSummaryTableColumn<S, ?>) column).getSummer();
-        if (summer != null) summers.add(summer);
-      }
-    }
-    return summers;
-  }
-
-  private void updatePredicate() {
-    if (updateLocker == 0) comber.get().setPredicate(buildPredicate());
-  }
-
-  private void updateOrders() {
-    if (updateLocker == 0) comber.get().setOrders(buildOrders());
-  }
-
-  private void updateSummers() {
-    if (updateLocker == 0) comber.get().setSummers(buildSummers());
-  }
-
-  private void updateTotalRowProduce() {
-    if (updateLocker == 0) comber.get().setTotalProduce(isTotalRowProduce());
-  }
-
-  private Map<XSummaryTableColumn<S, ?>, InvalidationListener> columnPredicateListeners =
-      new HashMap<>();
-  private Map<XSummaryTableColumn<S, ?>, InvalidationListener> columnOrderListeners =
-      new HashMap<>();
-  private Map<XSummaryTableColumn<S, ?>, InvalidationListener> columnSummerListeners =
-      new HashMap<>();
-
-  private void handlePredicatesChange(Change<? extends XSummaryTableColumn<S, ?>> c) {
-    updatePredicate();
-    while (c.next()) {
-      if (c.wasAdded()) {
-        for (XSummaryTableColumn<S, ?> column : c.getAddedSubList()) {
-          column.columnPredicateProperty().addListener(getColumnPredicateListener(column));
-        }
-      }
-      if (c.wasRemoved()) {
-        for (XSummaryTableColumn<S, ?> column : c.getRemoved()) {
-          column.columnPredicateProperty().removeListener(columnPredicateListeners.remove(column));
-        }
-      }
-    }
-  }
-
-  private InvalidationListener getColumnPredicateListener(XSummaryTableColumn<S, ?> column) {
-    InvalidationListener listener = columnPredicateListeners.get(column);
-    if (listener == null) {
-      columnPredicateListeners.put(column, listener = d -> updatePredicate());
-    }
-    return listener;
-  }
-
-  private void handleOrdersChange(Change<? extends TableColumn<XSummaryItem<S>, ?>> c) {
-    updateOrders();
-    while (c.next()) {
-      if (c.wasAdded()) {
-        for (TableColumn<XSummaryItem<S>, ?> column : c.getAddedSubList()) {
-          if (column instanceof XSummaryTableColumn)
-            ((XSummaryTableColumn<S, ?>) column).orderProperty()
-                .addListener(getColumnOrderListener((XSummaryTableColumn<S, ?>) column));
-        }
-      }
-      if (c.wasRemoved()) {
-        for (TableColumn<XSummaryItem<S>, ?> column : c.getAddedSubList()) {
-          ((XSummaryTableColumn<S, ?>) column).orderProperty()
-              .removeListener(columnOrderListeners.remove(column));
-        }
-      }
-    }
-  }
-
-  private InvalidationListener getColumnOrderListener(XSummaryTableColumn<S, ?> column) {
-    InvalidationListener listener = columnOrderListeners.get(column);
-    if (listener == null) {
-      columnOrderListeners.put(column, listener = d -> updateOrders());
-    }
-    return listener;
-  }
-
-  private void handleSummersChange(Change<? extends XSummaryTableColumn<S, ?>> c) {
-    updateSummers();
-    while (c.next()) {
-      if (c.wasAdded()) {
-        for (XSummaryTableColumn<S, ?> column : c.getAddedSubList()) {
-          column.summerProperty().addListener(getColumnSummerListener(column));
-        }
-      }
-      if (c.wasRemoved()) {
-        for (XSummaryTableColumn<S, ?> column : c.getRemoved()) {
-          column.summerProperty().removeListener(columnSummerListeners.remove(column));
-        }
-      }
-    }
-  }
-
-  private InvalidationListener getColumnSummerListener(XSummaryTableColumn<S, ?> column) {
-    InvalidationListener listener = columnSummerListeners.get(column);
-    if (listener == null) {
-      columnSummerListeners.put(column, listener = d -> updateSummers());
-    }
-    return listener;
   }
 
   @Override

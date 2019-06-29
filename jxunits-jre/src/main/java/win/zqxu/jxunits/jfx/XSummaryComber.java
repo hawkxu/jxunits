@@ -1,8 +1,6 @@
 package win.zqxu.jxunits.jfx;
 
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.beans.property.BooleanProperty;
@@ -11,14 +9,10 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn.SortType;
 
 public class XSummaryComber<S> {
-  public XSummaryComber() {
-    orders.set(FXCollections.observableArrayList());
-    summers.set(FXCollections.observableArrayList());
-  }
-
   private ObjectProperty<Predicate<S>> predicate = new SimpleObjectProperty<>();
 
   public final ObjectProperty<Predicate<S>> predicateProperty() {
@@ -44,56 +38,26 @@ public class XSummaryComber<S> {
     this.predicate.set(predicate);
   }
 
-  private ObjectProperty<List<XSummaryOrder<S, ?>>> orders = new SimpleObjectProperty<>();
+  private ObservableList<XSummaryOrder<S, ?>> orders = FXCollections.observableArrayList();
 
-  public final ObjectProperty<List<XSummaryOrder<S, ?>>> ordersProperty() {
+  /**
+   * Get observable orders list, can change order by the list
+   * 
+   * @return observable orders list
+   */
+  public final ObservableList<XSummaryOrder<S, ?>> getOrders() {
     return orders;
   }
 
-  /**
-   * Get an unmodifiable list of orders
-   * 
-   * @return the orders
-   */
-  public final List<XSummaryOrder<S, ?>> getOrders() {
-    List<XSummaryOrder<S, ?>> list = orders.get();
-    return list == null ? null : Collections.unmodifiableList(list);
-  }
+  private ObservableList<XSummarySummer<S, ?>> summers = FXCollections.observableArrayList();
 
   /**
-   * Set orders
+   * Get observable summers list, can change summer by the list
    * 
-   * @param orders
-   *          the orders
+   * @return observable summers list
    */
-  public final void setOrders(List<XSummaryOrder<S, ?>> orders) {
-    this.orders.set(orders);
-  }
-
-  private ObjectProperty<List<XSummarySummer<S, ?>>> summers = new SimpleObjectProperty<>();
-
-  public final ObjectProperty<List<XSummarySummer<S, ?>>> summersProperty() {
+  public final ObservableList<XSummarySummer<S, ?>> getSummers() {
     return summers;
-  }
-
-  /**
-   * Get an unmodifiable list of summers
-   * 
-   * @return the summers
-   */
-  public final List<XSummarySummer<S, ?>> getSummers() {
-    List<XSummarySummer<S, ?>> list = summers.get();
-    return list == null ? null : Collections.unmodifiableList(list);
-  }
-
-  /**
-   * Set summers
-   * 
-   * @param summers
-   *          the summers
-   */
-  public final void setSummers(List<XSummarySummer<S, ?>> summers) {
-    this.summers.set(summers);
   }
 
   private BooleanProperty totalProduce = new SimpleBooleanProperty();
@@ -121,7 +85,19 @@ public class XSummaryComber<S> {
     this.totalProduce.set(totalProduce);
   }
 
+  /**
+   * summary order interface
+   * 
+   * @author zqxu
+   */
   public static interface XSummaryOrder<S, T> {
+    /**
+     * Get sort type for ordering
+     * 
+     * @return sort type
+     */
+    public SortType getSortType();
+
     /***
      * Get comparator for compare value
      * 
@@ -130,14 +106,7 @@ public class XSummaryComber<S> {
     public Comparator<T> getComparator();
 
     /**
-     * Get sort type for ordering
-     * 
-     * @return sor type
-     */
-    public SortType getSortType();
-
-    /**
-     * Indicator for whether this order is subtotal group
+     * Indicate whether this order is sub total group
      * 
      * @return true or false
      */
@@ -153,6 +122,11 @@ public class XSummaryComber<S> {
     public ObservableValue<T> getObservableValue(S item);
   }
 
+  /**
+   * summary summer interface
+   * 
+   * @author zqxu
+   */
   public static interface XSummarySummer<S, T> {
     /**
      * Get observable value for this summer from the item

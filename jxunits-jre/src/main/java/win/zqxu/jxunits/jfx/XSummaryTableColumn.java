@@ -8,7 +8,6 @@ import java.util.function.Predicate;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ObjectPropertyBase;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -35,71 +34,99 @@ import win.zqxu.jxunits.jfx.XSummaryComber.XSummarySummer;
  * @author zqxu
  */
 public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
-
   public XSummaryTableColumn() {
     this(null);
   }
 
   public XSummaryTableColumn(String text) {
     super(text);
-    sortTypeProperty().addListener(d -> order.set(new SummaryColumnOrder<>(this)));
-    comparatorProperty().addListener(d -> order.set(new SummaryColumnOrder<>(this)));
-    subtotalGroup.addListener(d -> order.set(new SummaryColumnOrder<>(this)));
-    cellValueFactoryProperty().bind(Bindings.createObjectBinding(() -> summaryValueFactory));
+    updateColumnOrder();
+    sortTypeProperty().addListener(v -> updateColumnOrder());
+    comparatorProperty().addListener(v -> updateColumnOrder());
+    subtotalGroup.addListener(v -> updateColumnOrder());
+    cellValueFactoryProperty().bind(
+        Bindings.createObjectBinding(() -> summaryValueFactory));
   }
 
-  private ReadOnlyObjectWrapper<Predicate<S>> columnPredicate =
-      new ReadOnlyObjectWrapper<>(this, "columnPredicate");
+  private ReadOnlyObjectWrapper<Predicate<S>> itemPredicate =
+      new ReadOnlyObjectWrapper<>(this, "itemPredicate");
 
-  public final ReadOnlyObjectProperty<Predicate<S>> columnPredicateProperty() {
-    return columnPredicate.getReadOnlyProperty();
+  /**
+   * read only item predicate property, building from predicate of this column
+   * 
+   * @return item predicate property
+   */
+  public final ReadOnlyObjectProperty<Predicate<S>> itemPredicateProperty() {
+    return itemPredicate.getReadOnlyProperty();
   }
 
-  public final Predicate<S> getColumnPredicate() {
-    return columnPredicate.get();
+  /**
+   * Get item predicate, building from predicate of this column
+   * 
+   * @return item predicate
+   */
+  public final Predicate<S> getItemPredicate() {
+    return itemPredicate.get();
   }
 
-  private ObjectProperty<Predicate<T>> predicate = new ObjectPropertyBase<Predicate<T>>() {
-    @Override
-    public Object getBean() {
-      return XSummaryTableColumn.this;
-    }
+  private Predicate<S> buildItemPredicate(Predicate<T> predicate) {
+    if (predicate == null) return null;
+    return item -> {
+      return predicate.test(getSourceData(item));
+    };
+  }
 
-    @Override
-    public String getName() {
-      return "predicate";
-    }
+  private ObjectProperty<Predicate<T>> predicate =
+      new SimpleObjectProperty<Predicate<T>>(this, "predicate") {
+        @Override
+        protected void invalidated() {
+          itemPredicate.set(buildItemPredicate(get()));
+        }
+      };
 
-    @Override
-    protected void invalidated() {
-      final Predicate<T> predicate = get();
-      if (predicate == null)
-        columnPredicate.set(null);
-      else
-        columnPredicate.set(item -> predicate.test(getSourceObservableValue(item).getValue()));
-    }
-  };
-
+  /**
+   * column predicate property
+   * 
+   * @return column predicate property
+   */
   public final ObjectProperty<Predicate<T>> predicateProperty() {
     return predicate;
   }
 
+  /**
+   * Get column predate to filter items, default is null
+   * 
+   * @return column predate
+   */
   public final Predicate<T> getPredicate() {
     return predicate.get();
   }
 
+  /**
+   * Set column predate to filter items, default is null
+   * 
+   * @param predicate
+   *          column predate
+   */
   public final void setPredicate(Predicate<T> predicate) {
     this.predicate.set(predicate);
   }
 
   private BooleanProperty subtotalGroup = new SimpleBooleanProperty(this, "subtotalGroup");
 
+  /**
+   * property indicate whether this column was used as sub total group. this property will
+   * be ignored if column's sort type is null
+   * 
+   * @return sub total group property
+   */
   public final BooleanProperty subtotalGroupProperty() {
     return subtotalGroup;
   }
 
   /**
-   * Determine whether this column was used as subtotal group, default is false.
+   * Determine whether this column was used as sub total group, default is false. this
+   * property will be ignored if column's sort type is null
    * 
    * @return true or false
    */
@@ -108,7 +135,8 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
   }
 
   /**
-   * Set whether this column was used as subtotal group
+   * Set whether this column was used as sub total group, default is false. this property
+   * will be ignored if column's sort type is null
    * 
    * @param subtotalGroup
    *          true or false
@@ -118,55 +146,121 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
   }
 
   private ReadOnlyObjectWrapper<XSummaryOrder<S, T>> order =
-      new ReadOnlyObjectWrapper<>(this, "order", new SummaryColumnOrder<>(this));
+      new ReadOnlyObjectWrapper<>(this, "order");
 
+  /**
+   * read only column order property, follow by sort type, comparator and sub total group
+   * property
+   * 
+   * @return read only column order property
+   */
   public final ReadOnlyObjectProperty<XSummaryOrder<S, T>> orderProperty() {
     return order.getReadOnlyProperty();
   }
 
+  /**
+   * Get column order to sort items
+   * 
+   * @return column order
+   */
   public final XSummaryOrder<S, T> getOrder() {
     return order.get();
   }
 
-  private ObjectProperty<XSummarySummer<S, T>> summer =
-      new SimpleObjectProperty<>(this, "summer", new SummaryColumnSummer<>(this));
+  // items ordering is controlled by column sort type and table view sort order
+  // so, we only need change column order every time here
+  private void updateColumnOrder() {
+    order.set(new XSummaryColumnOrder<>(this));
+  }
 
+  private BooleanProperty summaryEnabled = new SimpleBooleanProperty(
+      this, "summaryEnabled") {
+    @Override
+    protected void invalidated() {
+      if (get() && getSummer() == null) setSummer(createDefaultSummer());
+    }
+  };
+
+  /**
+   * summary enabled property
+   * 
+   * @return summary enabled property
+   */
+  public final BooleanProperty summaryEnabledProperty() {
+    return this.summaryEnabled;
+  }
+
+  /**
+   * Determine whether summary enabled on this column
+   * 
+   * @return true or false
+   */
+  public final boolean isSummaryEnabled() {
+    return this.summaryEnabledProperty().get();
+  }
+
+  /**
+   * Set whether summary enabled on this column
+   * 
+   * @param summaryEnabled
+   *          true or false
+   */
+  public final void setSummaryEnabled(boolean summaryEnabled) {
+    this.summaryEnabledProperty().set(summaryEnabled);
+  }
+
+  private XSummaryColumnSummer<S, T> DEFAULT_SUMMER = new XSummaryColumnSummer<>(this);
+  private ObjectProperty<XSummarySummer<S, T>> summer =
+      new SimpleObjectProperty<XSummarySummer<S, T>>(this, "summer", DEFAULT_SUMMER) {
+        public void set(XSummaryComber.XSummarySummer<S, T> newValue) {
+          super.set(newValue != null ? newValue : DEFAULT_SUMMER);
+        };
+      };
+
+  /**
+   * summer property used to calculate items summary value, if set to null, then default
+   * summer will be used
+   * 
+   * @return summer property
+   */
   public final ObjectProperty<XSummarySummer<S, T>> summerProperty() {
     return summer;
   }
 
   /**
-   * Get the summary summer instance used to sum column data, default is null.
+   * Get summer used to calculate items summary value, default is a
+   * {@link XSummaryColumnSummer}
    * 
-   * @return the summary summer instance
+   * @return the summer
    */
   public final XSummarySummer<S, T> getSummer() {
     return summer.get();
   }
 
   /**
-   * Set the summary summer instance used to sum column data
+   * Set summer used to calculate items summary value, if set to null, then default summer
+   * will be used
    * 
    * @param summer
-   *          the summary summer instance
+   *          the summer
+   * @see XSummaryTableColumn.XSummaryColumnSummer
    */
-  public final void setSummer(SummaryColumnSummer<S, T> summer) {
+  public final void setSummer(XSummarySummer<S, T> summer) {
     this.summer.set(summer);
+  }
+
+  private XSummarySummer<S, T> createDefaultSummer() {
+    return new XSummaryColumnSummer<>(this);
   }
 
   private Callback<CellDataFeatures<XSummaryItem<S>, T>, ObservableValue<T>> summaryValueFactory =
       cdf -> {
         TableView<XSummaryItem<S>> table = cdf.getTableView();
-        if (!(table instanceof XSummaryTableView)) return null;
         XSummaryItem<S> item = cdf.getValue();
         if (item == null) return null;
-        XSummaryTableView<S> st = (XSummaryTableView<S>) table;
         if (item.isSummary()) {
-          if (st.getSortOrder().contains(cdf.getTableColumn())) {
-            return item.getSummaryValue(getOrder());
-          }
-          if (st.getSummers().contains(cdf.getTableColumn()))
-            return item.getSummaryValue(getSummer());
+          if (getOrder() != null) return item.getSummaryValue(getOrder());
+          if (getSummer() != null) return item.getSummaryValue(getSummer());
           return null;
         }
         Callback<XSummaryDataFeatures<S, T>, ObservableValue<T>> svf = getSourceValueFactory();
@@ -210,9 +304,28 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     this.sourceValueFactory.set(sourceValueFactory);
   }
 
+  /**
+   * Get observable value from source item follow this column
+   * 
+   * @param item
+   *          the source item
+   * @return observable value from source item follow this column
+   */
   public final ObservableValue<T> getSourceObservableValue(S item) {
     Callback<XSummaryDataFeatures<S, T>, ObservableValue<T>> svf = getSourceValueFactory();
     return svf == null ? null : svf.call(new XSummaryDataFeatures<>(getTableView(), this, item));
+  }
+
+  /**
+   * Get value from source item follow this column
+   * 
+   * @param item
+   *          the source item
+   * @return value from source item follow this column
+   */
+  public final T getSourceData(S item) {
+    ObservableValue<T> observable = getSourceObservableValue(item);
+    return observable == null ? null : observable.getValue();
   }
 
   public static class XSummaryDataFeatures<S, T> {
@@ -266,19 +379,24 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     }
   }
 
-  private static class SummaryColumnOrder<S, T> implements XSummaryOrder<S, T> {
+  /**
+   * Implemented order class to provide oder using column
+   * 
+   * @author zqxu
+   */
+  public static class XSummaryColumnOrder<S, T> implements XSummaryOrder<S, T> {
     private final XSummaryTableColumn<S, T> column;
 
-    public SummaryColumnOrder(XSummaryTableColumn<S, T> column) {
+    public XSummaryColumnOrder(XSummaryTableColumn<S, T> column) {
       this.column = column;
-    }
-
-    public Comparator<T> getComparator() {
-      return column.getComparator();
     }
 
     public final SortType getSortType() {
       return column.getSortType();
+    }
+
+    public Comparator<T> getComparator() {
+      return column.getComparator();
     }
 
     public final boolean isSubtotalGroup() {
@@ -291,10 +409,15 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     }
   }
 
-  private static class SummaryColumnSummer<S, T> implements XSummarySummer<S, T> {
+  /**
+   * Implemented summer class to calculate number summary value
+   * 
+   * @author zqxu
+   */
+  public static class XSummaryColumnSummer<S, T> implements XSummarySummer<S, T> {
     protected final XSummaryTableColumn<S, T> column;
 
-    public SummaryColumnSummer(XSummaryTableColumn<S, T> column) {
+    public XSummaryColumnSummer(XSummaryTableColumn<S, T> column) {
       this.column = column;
     }
 

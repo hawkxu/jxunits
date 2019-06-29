@@ -2,9 +2,12 @@ package win.zqxu.jxunits.jfx;
 
 import java.util.Objects;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
+import javafx.event.ActionEvent;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -25,10 +28,27 @@ import win.zqxu.jxunits.jre.XObjectUtils;
  * @author zqxu
  */
 public class XValueField<T> extends TextField {
-  private ObjectProperty<TextFormatter<T>> formatter = new SimpleObjectProperty<>();
-  private ObjectProperty<XValueProvider<T>> provider = new SimpleObjectProperty<>();
-  private ObjectProperty<T> value = new SimpleObjectProperty<>();
-  private ChangeListener<T> formatterValueHandler;
+  private ObjectProperty<TextFormatter<T>> formatter =
+      new SimpleObjectProperty<>(this, "formatter");
+  private ObjectProperty<XValueProvider<T>> provider =
+      new SimpleObjectProperty<>(this, "provider");
+  private ObjectProperty<T> value = new ObjectPropertyBase<T>() {
+    @Override
+    public Object getBean() {
+      return XValueField.this;
+    }
+
+    @Override
+    public String getName() {
+      return "value";
+    }
+
+    protected void invalidated() {
+      handleValueChanged(get());
+    }
+  };
+  private BooleanProperty valueClearAllowed =
+      new SimpleBooleanProperty(this, "valueClearAllowed");
 
   public XValueField() {
     this(null, null);
@@ -47,6 +67,7 @@ public class XValueField<T> extends TextField {
     installListeners();
     setFormatter(formatter);
     setProvider(provider);
+    setValueClearAllowed(true);
     textFormatterProperty().bind(formatterProperty());
   }
 
@@ -135,6 +156,37 @@ public class XValueField<T> extends TextField {
   }
 
   /**
+   * When formatter not set and the field is editable (usually a provider set), whether
+   * allow clear value to null by delete/backspace key or not.
+   * 
+   * @return valueClearAllowed property
+   */
+  public final BooleanProperty valueClearAllowedProperty() {
+    return valueClearAllowed;
+  }
+
+  /**
+   * When formatter not set and the field is editable (usually a provider set), whether
+   * allow clear value to null by delete/backspace key or not.
+   * 
+   * @return true or false
+   */
+  public final boolean isValueClearAllowed() {
+    return valueClearAllowed.get();
+  }
+
+  /**
+   * When formatter not set and the field is editable (usually a provider set), whether
+   * allow clear value to null by delete/backspace key or not.
+   * 
+   * @param valueClearAllowed
+   *          true or false
+   */
+  public final void setValueClearAllowed(boolean valueClearAllowed) {
+    this.valueClearAllowed.set(valueClearAllowed);
+  }
+
+  /**
    * Determine whether current value is empty
    * 
    * @return true if current value is empty
@@ -142,32 +194,6 @@ public class XValueField<T> extends TextField {
    */
   public boolean isEmpty() {
     return XObjectUtils.isEmpty(getValue());
-  }
-
-  private void installListeners() {
-    formatterProperty().addListener((v, o, n) -> handleFormatterChanged(o, n));
-    addEventFilter(KeyEvent.ANY, event -> filterKeyEvent(event));
-    valueProperty().addListener((v, o, n) -> handleValueChanged(n));
-  }
-
-  private void handleFormatterChanged(TextFormatter<T> o, TextFormatter<T> n) {
-    ChangeListener<T> handler = getFormatterValueHandler();
-    if (o != null) {
-      o.valueProperty().removeListener(handler);
-    }
-    if (n != null) {
-      n.setValue(getValue());
-      n.valueProperty().addListener(handler);
-    }
-  }
-
-  private ChangeListener<T> getFormatterValueHandler() {
-    if (formatterValueHandler == null) {
-      formatterValueHandler = (v, o, n) -> {
-        if (!value.isBound()) setValue(n);
-      };
-    }
-    return formatterValueHandler;
   }
 
   private void handleValueChanged(T value) {
@@ -182,13 +208,21 @@ public class XValueField<T> extends TextField {
     }
   }
 
+  private void installListeners() {
+    addEventFilter(ActionEvent.ACTION, event -> commitValue());
+    addEventFilter(KeyEvent.ANY, event -> filterKeyEvent(event));
+  }
+
   private void filterKeyEvent(KeyEvent event) {
     if (getFormatter() == null && isEditable()) {
-      String eventName = event.getEventType().getName();
       KeyCode code = event.getCode();
-      boolean clear = code == KeyCode.DELETE || code == KeyCode.BACK_SPACE;
-      if (clear || eventName.equals("KEY_TYPED")) event.consume();
-      if (clear && eventName.equals("KEY_RELEASED")) setValue(null);
+      if (code != KeyCode.TAB) event.consume();
+      boolean clear = code == KeyCode.DELETE
+          || code == KeyCode.BACK_SPACE;
+      if (clear && isValueClearAllowed()) {
+        String type = event.getEventType().getName();
+        if (type.equals("KEY_RELEASED")) setValue(null);
+      }
     }
   }
 

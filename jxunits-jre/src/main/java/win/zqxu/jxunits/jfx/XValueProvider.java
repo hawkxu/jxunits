@@ -1,6 +1,7 @@
 package win.zqxu.jxunits.jfx;
 
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -42,6 +43,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
+import win.zqxu.jxunits.jre.XDateUtils;
 
 /**
  * Base class of value provider, the implementation classes should use getValue and
@@ -135,8 +137,17 @@ public abstract class XValueProvider<T> {
    * 
    * @return value provider
    */
-  public static XValueProvider<LocalDate> DATE() {
+  public static XValueProvider<Date> DATE() {
     return new XDateValueProvider(XImageLoader.get("pickdown.png"));
+  }
+
+  /**
+   * Create value provider for select date value
+   * 
+   * @return value provider
+   */
+  public static XValueProvider<LocalDate> LOCALDATE() {
+    return new XLocalDateProvider(XImageLoader.get("pickdown.png"));
   }
 
   /**
@@ -610,11 +621,11 @@ public abstract class XValueProvider<T> {
     }
   }
 
-  public static class XDateValueProvider extends XPopupValueProvider<LocalDate> {
+  public static abstract class XAbstractDateProvider<T> extends XPopupValueProvider<T> {
     private DatePicker picker = new DatePicker();
     private Node pane;
 
-    public XDateValueProvider(Image icon) {
+    public XAbstractDateProvider(Image icon) {
       super(icon);
     }
 
@@ -625,20 +636,62 @@ public abstract class XValueProvider<T> {
         pane = skin.getPopupContent();
         picker.valueProperty().addListener((v, o, n) -> handleSelected());
       }
-      picker.setValue(getEditingValue());
+      picker.setValue(getEditingLocalDate());
       return pane;
     }
 
     private void handleSelected() {
       if (isShowing()) {
         hide();
-        commitProviderValue(picker.getValue());
+        commitProviderValue(convertPickedDate(picker.getValue()));
       }
+    }
+
+    protected abstract LocalDate getEditingLocalDate();
+
+    protected abstract T convertPickedDate(LocalDate value);
+  }
+
+  public static class XDateValueProvider extends XAbstractDateProvider<Date> {
+
+    public XDateValueProvider(Image icon) {
+      super(icon);
+    }
+
+    @Override
+    protected LocalDate getEditingLocalDate() {
+      return XDateUtils.toLocalDate(getEditingValue());
+    }
+
+    @Override
+    protected Date convertPickedDate(LocalDate value) {
+      return XDateUtils.toDate(value);
     }
 
     @Override
     public XDateValueProvider clone() {
       return new XDateValueProvider(icon);
+    }
+  }
+
+  public static class XLocalDateProvider extends XAbstractDateProvider<LocalDate> {
+    public XLocalDateProvider(Image icon) {
+      super(icon);
+    }
+
+    @Override
+    protected LocalDate getEditingLocalDate() {
+      return getEditingValue();
+    }
+
+    @Override
+    protected LocalDate convertPickedDate(LocalDate value) {
+      return value;
+    }
+
+    @Override
+    public XLocalDateProvider clone() {
+      return new XLocalDateProvider(icon);
     }
   }
 

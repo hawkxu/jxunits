@@ -12,6 +12,8 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
+import javafx.collections.MapChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
@@ -45,7 +47,18 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
     setProvider(provider);
     setEditable(true);
     setAutoTrim(true);
+    setFocusTraversable(false);
     setItems(FXCollections.observableArrayList());
+    getProperties().addListener((MapChangeListener<Object, Object>) change -> {
+      handlePropertiesChanged(change);
+    });
+  }
+
+  private void handlePropertiesChanged(Change<?, ?> change) {
+    if (change.wasAdded() && "FOCUSED".equals(change.getKey())) {
+      setFocused(Boolean.TRUE.equals(change.getValueAdded()));
+      getProperties().remove("FOCUSED");
+    }
   }
 
   /**
@@ -340,6 +353,19 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
       itemsProperty().add(range);
     else
       itemsProperty().set(0, range);
+  }
+
+  /**
+   * <code>XRangeField</code> is not focus traversable in default to focus children at tab
+   * key, but if requestFocus invoked and it isn't focus owner, the low field will be
+   * focused
+   */
+  @Override
+  public void requestFocus() {
+    if (!isFocused()) {
+      getProperties().put("FOCUS-LOW", Boolean.TRUE);
+      super.requestFocus();
+    }
   }
 
   @Override
