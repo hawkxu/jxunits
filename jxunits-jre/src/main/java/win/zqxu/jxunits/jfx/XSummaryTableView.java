@@ -210,8 +210,10 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
   private List<XSummarySummer<S, ?>> buildComberSummers() {
     List<XSummarySummer<S, ?>> summers = new ArrayList<>();
     for (TableColumn<XSummaryItem<S>, ?> column : getLeafColumns()) {
-      if (column instanceof XSummaryTableColumn)
-        summers.add(((XSummaryTableColumn<S, ?>) column).getSummer());
+      if (column instanceof XSummaryTableColumn) {
+        XSummaryTableColumn<S, ?> xc = (XSummaryTableColumn<S, ?>) column;
+        if (xc.isSummaryEnabled()) summers.add(xc.getSummer());
+      }
     }
     return summers;
   }

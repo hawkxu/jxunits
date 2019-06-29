@@ -174,12 +174,7 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
   }
 
   private BooleanProperty summaryEnabled = new SimpleBooleanProperty(
-      this, "summaryEnabled") {
-    @Override
-    protected void invalidated() {
-      if (get() && getSummer() == null) setSummer(createDefaultSummer());
-    }
-  };
+      this, "summaryEnabled");
 
   /**
    * summary enabled property
@@ -249,17 +244,15 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
     this.summer.set(summer);
   }
 
-  private XSummarySummer<S, T> createDefaultSummer() {
-    return new XSummaryColumnSummer<>(this);
-  }
-
   private Callback<CellDataFeatures<XSummaryItem<S>, T>, ObservableValue<T>> summaryValueFactory =
       cdf -> {
         TableView<XSummaryItem<S>> table = cdf.getTableView();
+        if (table == null) return null;
         XSummaryItem<S> item = cdf.getValue();
         if (item == null) return null;
         if (item.isSummary()) {
-          if (getOrder() != null) return item.getSummaryValue(getOrder());
+          if (table.getSortOrder().contains(XSummaryTableColumn.this))
+            return item.getSummaryValue(getOrder());
           if (getSummer() != null) return item.getSummaryValue(getSummer());
           return null;
         }

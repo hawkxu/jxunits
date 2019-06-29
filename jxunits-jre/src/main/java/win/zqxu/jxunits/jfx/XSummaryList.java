@@ -69,6 +69,15 @@ public class XSummaryList<S> extends TransformationList<XSummaryItem<S>, S> {
   }
 
   /**
+   * returns true only if the obj is this instance exactly, to make sure table view items
+   * property fire changed event
+   */
+  @Override
+  public boolean equals(Object obj) {
+    return obj == this;
+  }
+
+  /**
    * Determine whether is a summary row at the index
    * 
    * @param index
@@ -367,10 +376,13 @@ public class XSummaryList<S> extends TransformationList<XSummaryItem<S>, S> {
         if (itemComparator.compare(item, items[pos]) < 0) break;
       }
       return pos;
-    } else if (size > 0 && items[size - 1].summary) {
-      return size - 1;
+    } else {
+      int index = item.sourceIndex;
+      for (int i = 0; i < item.sourceIndex; i++) {
+        if (findSourceItem(i) == -1) index--;
+      }
+      return index;
     }
-    return size;
   }
 
   private void addItem(int index, SummaryItemImpl<S> unsorted) {
