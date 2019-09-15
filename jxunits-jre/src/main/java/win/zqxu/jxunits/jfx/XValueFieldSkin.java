@@ -3,14 +3,12 @@ package win.zqxu.jxunits.jfx;
 import com.sun.javafx.scene.control.skin.TextFieldSkin;
 
 import javafx.beans.value.ChangeListener;
-import javafx.css.PseudoClass;
 import javafx.geometry.Pos;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.StackPane;
 
 @SuppressWarnings("restriction")
 class XValueFieldSkin<T> extends TextFieldSkin {
-  private static final PseudoClass HAS_PROVIDER = PseudoClass.getPseudoClass("provider-visible");
   private XValueField<T> field;
   private StackPane providerPane;
 
@@ -26,7 +24,7 @@ class XValueFieldSkin<T> extends TextFieldSkin {
   private ChangeListener<T> formatterValueHandler = (v, o, n) -> {
     if (!field.valueProperty().isBound()) field.setValue(n);
   };
-  
+
   private void handleFormatterChanged(TextFormatter<T> o, TextFormatter<T> n) {
     if (o != null) {
       o.valueProperty().removeListener(formatterValueHandler);
@@ -46,34 +44,29 @@ class XValueFieldSkin<T> extends TextFieldSkin {
     if (n != null) {
       n.bindToField(field);
       providerPane = new StackPane(n.getNode());
+      providerPane.setManaged(false);
       providerPane.setAlignment(Pos.CENTER_RIGHT);
       providerPane.getStyleClass().add("provider");
       getChildren().add(providerPane);
       n.getNode().disableProperty().bind(field.disabledProperty()
           .or(field.editableProperty().not()));
     }
-    field.pseudoClassStateChanged(HAS_PROVIDER, providerPane != null);
   }
 
   @Override
   protected void layoutChildren(double x, double y, double w, double h) {
     double fullHeight = h + snappedTopInset() + snappedBottomInset();
     double providerWidth = 0.0;
-    if (providerPane != null)
+    if (providerPane != null) {
+      w += snappedRightInset();
       providerWidth = snapSize(providerPane.prefWidth(fullHeight));
+    }
     double textFieldWidth = w - snapSize(providerWidth);
     super.layoutChildren(snapPosition(x), 0, textFieldWidth, fullHeight);
     if (providerPane != null) {
-      double providerStartX = w - providerWidth + snappedLeftInset();
+      double providerStartX = field.getWidth() - providerWidth;
       providerPane.resizeRelocate(providerStartX, 0, providerWidth, fullHeight);
     }
-  }
-
-  @Override
-  protected double computePrefWidth(double h, double topInset, double rightInset,
-      double bottomInset, double leftInset) {
-    double pw = super.computePrefWidth(h, topInset, rightInset, bottomInset, leftInset);
-    return pw + (providerPane == null ? 0.0 : snapSize(providerPane.prefWidth(h)));
   }
 
   @Override

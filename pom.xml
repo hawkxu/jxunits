@@ -10,6 +10,7 @@
     <module>jxunits-jpa</module>
     <module>jxunits-tag</module>
     <module>jxunits-web</module>
+    <module>jxunits-test</module>
   </modules>
   <name>jxunits</name>
   <url>https://github.com/hawkxu/jxunits</url>

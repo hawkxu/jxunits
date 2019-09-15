@@ -19,14 +19,20 @@ import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 
 public class XRangeField<T extends Comparable<? super T>> extends Control {
-  private BooleanProperty editable = new SimpleBooleanProperty();
-  private ObjectProperty<XPatternFormatter<T>> formatter = new SimpleObjectProperty<>();
-  private ListProperty<XRangeItem<T>> items = new SimpleListProperty<>();
-  private BooleanProperty autoTrim = new SimpleBooleanProperty();
-  private ObjectProperty<XValueProvider<T>> provider = new SimpleObjectProperty<>();
-  private IntegerProperty prefColumnCount = new SimpleIntegerProperty(12);
-  private BooleanProperty interval = new SimpleBooleanProperty(true);
-  private BooleanProperty multiple = new SimpleBooleanProperty(true);
+  private BooleanProperty editable = new SimpleBooleanProperty(this, "editable");
+  private ObjectProperty<XPatternFormatter<T>> formatter =
+      new SimpleObjectProperty<XPatternFormatter<T>>(this, "formatter") {
+        @Override
+        public void set(XPatternFormatter<T> newValue) {
+          super.set(newValue != null ? newValue : XPatternFormatter.READONLY());
+        };
+      };
+  private ListProperty<XRangeItem<T>> items = new SimpleListProperty<>(this, "items");
+  private BooleanProperty autoTrim = new SimpleBooleanProperty(this, "autoTrim");
+  private ObjectProperty<XValueProvider<T>> provider = new SimpleObjectProperty<>(this, "provider");
+  private IntegerProperty prefColumnCount = new SimpleIntegerProperty(this, "prefColumnCount", 12);
+  private BooleanProperty interval = new SimpleBooleanProperty(this, "interval", true);
+  private BooleanProperty multiple = new SimpleBooleanProperty(this, "multiple", true);
   private ObjectProperty<XRangeOption> fixedOption;
 
   public XRangeField() {

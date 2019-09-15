@@ -1,7 +1,5 @@
 package win.zqxu.jxunits.jfx;
 
-import java.util.Objects;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
@@ -16,8 +14,8 @@ import javafx.scene.input.KeyEvent;
 import win.zqxu.jxunits.jre.XObjectUtils;
 
 /**
- * A text field support any value through formatter and provider, manual input has been
- * blocked as default, must set formatter to enable manual input.
+ * A text field support any value through formatter and provider, read only formatter used
+ * as default, must set formatter to enable manual input.
  * <p>
  * Please notice:
  * </p>
@@ -28,28 +26,6 @@ import win.zqxu.jxunits.jre.XObjectUtils;
  * @author zqxu
  */
 public class XValueField<T> extends TextField {
-  private ObjectProperty<TextFormatter<T>> formatter =
-      new SimpleObjectProperty<>(this, "formatter");
-  private ObjectProperty<XValueProvider<T>> provider =
-      new SimpleObjectProperty<>(this, "provider");
-  private ObjectProperty<T> value = new ObjectPropertyBase<T>() {
-    @Override
-    public Object getBean() {
-      return XValueField.this;
-    }
-
-    @Override
-    public String getName() {
-      return "value";
-    }
-
-    protected void invalidated() {
-      handleValueChanged(get());
-    }
-  };
-  private BooleanProperty valueClearAllowed =
-      new SimpleBooleanProperty(this, "valueClearAllowed");
-
   public XValueField() {
     this(null, null);
   }
@@ -68,8 +44,16 @@ public class XValueField<T> extends TextField {
     setFormatter(formatter);
     setProvider(provider);
     setValueClearAllowed(true);
-    textFormatterProperty().bind(formatterProperty());
+    textFormatterProperty().bind(this.formatter);
   }
+
+  private ObjectProperty<TextFormatter<T>> formatter =
+      new SimpleObjectProperty<TextFormatter<T>>(this, "formatter") {
+        @Override
+        public void set(TextFormatter<T> n) {
+          super.set(n != null ? n : XPatternFormatter.READONLY());
+        }
+      };
 
   /**
    * formatter property
@@ -86,17 +70,21 @@ public class XValueField<T> extends TextField {
    * @return formatter
    */
   public final TextFormatter<T> getFormatter() {
-    return formatterProperty().get();
+    return formatter.get();
   }
 
+  private ObjectProperty<XValueProvider<T>> provider =
+      new SimpleObjectProperty<>(this, "provider");
+
   /**
-   * set formatter of this field
+   * set formatter of this field, if the parameter formatter is null, then default read
+   * only formatter will be used.
    * 
    * @param formatter
    *          formatter
    */
   public final void setFormatter(TextFormatter<T> formatter) {
-    formatterProperty().set(formatter);
+    this.formatter.set(formatter);
   }
 
   /**
@@ -114,7 +102,7 @@ public class XValueField<T> extends TextField {
    * @return provider
    */
   public final XValueProvider<T> getProvider() {
-    return providerProperty().get();
+    return provider.get();
   }
 
   /**
@@ -124,8 +112,24 @@ public class XValueField<T> extends TextField {
    *          provider
    */
   public final void setProvider(XValueProvider<T> provider) {
-    providerProperty().set(provider);
+    this.provider.set(provider);
   }
+
+  private ObjectProperty<T> value = new ObjectPropertyBase<T>() {
+    @Override
+    public Object getBean() {
+      return XValueField.this;
+    }
+
+    @Override
+    public String getName() {
+      return "value";
+    }
+
+    protected void invalidated() {
+      handleValueChanged(get());
+    }
+  };
 
   /**
    * value property
@@ -142,7 +146,7 @@ public class XValueField<T> extends TextField {
    * @return value
    */
   public final T getValue() {
-    return valueProperty().get();
+    return value.get();
   }
 
   /**
@@ -152,8 +156,11 @@ public class XValueField<T> extends TextField {
    *          value
    */
   public final void setValue(T value) {
-    valueProperty().set(value);
+    this.value.set(value);
   }
+
+  private BooleanProperty valueClearAllowed =
+      new SimpleBooleanProperty(this, "valueClearAllowed");
 
   /**
    * When formatter not set and the field is editable (usually a provider set), whether
@@ -197,15 +204,7 @@ public class XValueField<T> extends TextField {
   }
 
   private void handleValueChanged(T value) {
-    if (getFormatter() != null) {
-      getFormatter().setValue(value);
-      return;
-    }
-    String text = Objects.toString(value, "");
-    if (!Objects.equals(text, getText())) {
-      setText(text);
-      positionCaret(getText().length());
-    }
+    getFormatter().setValue(value);
   }
 
   private void installListeners() {
@@ -214,26 +213,18 @@ public class XValueField<T> extends TextField {
   }
 
   private void filterKeyEvent(KeyEvent event) {
-    if (getFormatter() == null && isEditable()) {
+    String type = event.getEventType().getName();
+    TextFormatter<T> f = getFormatter();
+    XPatternFormatter<?> xf = null;
+    if (f instanceof XPatternFormatter)
+      xf = (XPatternFormatter<?>) f;
+    if (isEditable() && type.equals("KEY_RELEASED")
+        && xf != null && xf.isReadonly()) {
       KeyCode code = event.getCode();
-      if (code != KeyCode.TAB) event.consume();
       boolean clear = code == KeyCode.DELETE
           || code == KeyCode.BACK_SPACE;
-      if (clear && isValueClearAllowed()) {
-        String type = event.getEventType().getName();
-        if (type.equals("KEY_RELEASED")) setValue(null);
-      }
+      if (clear && isValueClearAllowed()) setValue(null);
     }
-  }
-
-  @Override
-  public void cut() {
-    if (getFormatter() != null) super.cut();
-  }
-
-  @Override
-  public void paste() {
-    if (getFormatter() != null) super.paste();
   }
 
   /**
@@ -246,24 +237,18 @@ public class XValueField<T> extends TextField {
    *           if formatter not set
    */
   public T convertToValue(String text) {
-    TextFormatter<T> f = getFormatter();
-    if (f == null)
-      throw new IllegalStateException("formatter not set");
-    return f.getValueConverter().fromString(text);
+    return getFormatter().getValueConverter().fromString(text);
   }
 
   /**
-   * convert value to string through formatter, returns value.toString if formatter not
-   * set
+   * convert value to string through formatter
    * 
    * @param value
    *          the value
    * @return value string
    */
   public String convertToString(T value) {
-    TextFormatter<T> f = getFormatter();
-    if (f == null) return Objects.toString(value, "");
-    return f.getValueConverter().toString(value);
+    return getFormatter().getValueConverter().toString(value);
   }
 
   /**

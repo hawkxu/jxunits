@@ -32,12 +32,14 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -165,7 +167,7 @@ public class XJfxUtils {
   public static ButtonType showAlert(Node owner, AlertType alertType,
       String message, ButtonType... buttonTypes) {
     Alert alert = new Alert(alertType);
-    initOwnerModality(alert, owner);
+    initOwnerModality(alert, owner, false);
     alert.setHeaderText(message);
     if (!XObjectUtils.isEmpty(buttonTypes)) {
       alert.getButtonTypes().clear();
@@ -224,8 +226,8 @@ public class XJfxUtils {
     TextField field = new TextField();
     VBox content = new VBox(field);
     content.setPadding(new Insets(10, 10, 0, 30));
-    Dialog<ButtonType> dialog = createDialog(owner, content);
-    dialog.setTitle(XResource.getString("INPUT_TITLE"));
+    Dialog<ButtonType> dialog = createDialog(owner, content,
+        XResource.getString("INPUT_TITLE"));
     dialog.setHeaderText(header);
     try {
       formatter.setValue(defaultValue);
@@ -248,11 +250,13 @@ public class XJfxUtils {
    *          a reference node in the owner window
    * @param content
    *          content node for the created dialog
+   * @param title
+   *          dialog title
    * @return created dialog
-   * @see #createDialog(Node, Node, ButtonType...)
+   * @see #createDialog(Node, Node, String, ButtonType...)
    */
-  public static Dialog<ButtonType> createDialog(Node owner, Node content) {
-    return createDialog(owner, content, ButtonType.OK, ButtonType.CANCEL);
+  public static Dialog<ButtonType> createDialog(Node owner, Node content, String title) {
+    return createDialog(owner, content, title, ButtonType.OK, ButtonType.CANCEL);
   }
 
   /**
@@ -263,17 +267,20 @@ public class XJfxUtils {
    *          a reference node in the owner window
    * @param content
    *          content node for the created dialog
+   * @param title
+   *          dialog title
    * @param buttons
    *          buttons will be created in dialog
    * @return created dialog
    * @see #setButtonIcon(ButtonType, Image)
    */
-  public static Dialog<ButtonType> createDialog(Node owner, Node content,
+  public static Dialog<ButtonType> createDialog(Node owner, Node content, String title,
       ButtonType... buttons) {
     Dialog<ButtonType> dialog = new Dialog<>();
-    initOwnerModality(dialog, owner);
+    initOwnerModality(dialog, owner, false);
     DialogPane dialogPane = new DialogPane();
     dialog.setDialogPane(dialogPane);
+    dialog.setTitle(title);
     dialogPane.setContent(content);
     dialogPane.getButtonTypes().addAll(buttons);
     updateDialogButtonIcons(dialogPane);
@@ -400,7 +407,7 @@ public class XJfxUtils {
     expand.setEditable(false);
     expand.setPrefHeight(300);
     Alert alert = new Alert(AlertType.ERROR);
-    initOwnerModality(alert, owner);
+    initOwnerModality(alert, owner, false);
     if (title != null) alert.setTitle(title);
     alert.setHeaderText(message.toString());
     alert.getDialogPane().setExpandableContent(expand);
@@ -578,6 +585,20 @@ public class XJfxUtils {
   }
 
   /**
+   * show dialog pane as modaless dialog
+   * 
+   * @param owner
+   *          a reference node in the owner window
+   * @param pane
+   *          the dialog pane
+   * @param title
+   *          the dialog title
+   */
+  public static void showModaless(Node owner, DialogPane pane, String title) {
+    showDialog(owner, pane, title, true);
+  }
+
+  /**
    * show dialog pane as modal dialog
    * 
    * @param owner
@@ -589,23 +610,32 @@ public class XJfxUtils {
    * @return the button type of the dialog closed by
    */
   public static ButtonType showDialog(Node owner, DialogPane pane, String title) {
+    return showDialog(owner, pane, title, false);
+  }
+
+  private static ButtonType showDialog(Node owner, DialogPane pane, String title,
+      boolean modaless) {
     Dialog<ButtonType> dialog = new Dialog<>();
-    initOwnerModality(dialog, owner);
+    initOwnerModality(dialog, owner, modaless);
     dialog.setTitle(title);
     dialog.setDialogPane(pane);
-    dialog.showAndWait();
+    if (modaless)
+      dialog.show();
+    else
+      dialog.showAndWait();
     return dialog.getResult();
   }
 
-  private static void initOwnerModality(Dialog<?> dialog, Node owner) {
+  private static void initOwnerModality(Dialog<?> dialog, Node owner, boolean modaless) {
     Scene scene = owner == null ? null : owner.getScene();
     Window window = scene == null ? null : scene.getWindow();
-    if (window != null) {
-      dialog.initOwner(window);
+    if (window != null) dialog.initOwner(window);
+    if (modaless)
+      dialog.initModality(Modality.NONE);
+    else if (window != null)
       dialog.initModality(Modality.WINDOW_MODAL);
-    } else {
+    else
       dialog.initModality(Modality.APPLICATION_MODAL);
-    }
   }
 
   /**
@@ -636,43 +666,95 @@ public class XJfxUtils {
   }
 
   /**
-   * resize column to fit its content if possible
+   * resize all visible leaf columns width to fit its content, search up to 20,000 rows
+   * for each column. no any exception throws even if resize failed
+   * 
+   * @param table
+   *          the table view contains columns to be resized
+   */
+  public static void optimizeColumnsWidth(TableView<?> table) {
+    optimizeColumnsWidth(table, null);
+  }
+
+  /**
+   * resize all visible leaf columns width to fit its content, search up to 20,000 rows
+   * for each column, grow or shrink the specified column width to fit table if possible.
+   * no any exception throws even if resize failed
+   * 
+   * @param table
+   *          the table view contains columns to be resized
+   * @param fitTable
+   *          the specified column to fit table free space
+   * @see #resizeColumnToFitTable(TableColumn)
+   */
+  public static void optimizeColumnsWidth(TableView<?> table, TableColumn<?, ?> fitTable) {
+    try {
+      Skin<?> skin = table.getSkin();
+      Method resize = getResizeColumnMethod(skin);
+      if (resize == null) return;
+      for (TableColumn<?, ?> column : table.getVisibleLeafColumns())
+        resize.invoke(skin, column, 20000);
+      if (fitTable != null) resizeColumnToFitTable(fitTable);
+    } catch (Throwable ex) {
+      // completely ignored any exceptions
+    }
+  }
+
+  /**
+   * resize column to fit its content, search up to 20,000 rows, no any exception throws
+   * even resize failed
    * 
    * @param column
    *          the table column
    */
   public static void resizeColumnToFitContent(TableColumn<?, ?> column) {
-    Skin<?> skin = column.getTableView().getSkin();
-    if (skin == null) return;
     try {
-      Method method = XObjectUtils.getMethod(skin, "resizeColumnToFitContent",
-          TableColumn.class, int.class);
-      method.setAccessible(true);
-      method.invoke(skin, column, -1);
+      TableView<?> table = column.getTableView();
+      if (table == null) return;
+      Skin<?> skin = table.getSkin();
+      Method resize = getResizeColumnMethod(skin);
+      if (resize != null)
+        resize.invoke(skin, column, 20000);
     } catch (Exception ex) {
-      // safely ignored any exception
+      // completely ignored any exceptions
     }
   }
 
+  private static Method getResizeColumnMethod(Skin<?> skin) {
+    if (skin == null) return null;
+    Method resize = XObjectUtils.getMethod(skin,
+        "resizeColumnToFitContent",
+        TableColumn.class, int.class);
+    if (resize != null) resize.setAccessible(true);
+    return resize;
+  }
+
   /**
-   * Grow column width to fit table if possible
+   * Grow or shrink the column width to fit table, the column will resize to minimum 10
+   * pixels even if minWidth of the column was more less. no any exception throws even
+   * resize failed
    * 
    * @param column
    *          the table column
    */
+  @SuppressWarnings("deprecation")
   public static void resizeColumnToFitTable(TableColumn<?, ?> column) {
-    TableView<?> table = column.getTableView();
-    Node container = table.lookup(".clipped-container");
-    if (container == null) return;
-    double freeWidth = container.prefWidth(-1);
-    for (TableColumn<?, ?> item : table.getColumns())
-      if (item.isVisible()) freeWidth -= item.getWidth();
-    if (freeWidth == 0) return;
     try {
-      Method method = XObjectUtils.getMethod(column, "setWidth", double.class);
-      method.setAccessible(true);
-      method.invoke(column, column.getWidth() + freeWidth);
-    } catch (Exception ex) {
+      TableView<?> table = column.getTableView();
+      if (table == null) return;
+      Region container = (Region) table.lookup(".clipped-container");
+      if (container == null) return;
+      double freeWidth = container.getWidth();
+      boolean found = false;
+      for (TableColumn<?, ?> c : table.getVisibleLeafColumns()) {
+        freeWidth -= c.getWidth();
+        if (c == column) found = true;
+      }
+      if (!found || freeWidth == 0) return;
+      double width = column.getWidth() + freeWidth;
+      width = Math.max(width, Math.min(10, column.getMinWidth()));
+      column.impl_setWidth(Math.min(width, column.getMaxWidth()));
+    } catch (Throwable ex) {
       // completely ignored any exceptions
     }
   }
@@ -784,6 +866,28 @@ public class XJfxUtils {
     }
     return node == null ? new BoundingBox(0, 0, 0, 0)
         : new BoundingBox(minX, minY, width, height);
+  }
+
+  /**
+   * scroll to table row if the row not visible
+   * 
+   * @param table
+   *          the table view
+   * @param row
+   *          the row index to make visible
+   */
+  public static void scrollToRow(TableView<?> table, int row) {
+    Region container = (Region) table.lookup(".clipped-container");
+    double height = container.getHeight();
+    for (Node node : table.lookupAll(".table-row-cell")) {
+      TableRow<?> tableRow = (TableRow<?>) node;
+      if (tableRow.getIndex() == row) {
+        Bounds bounds = tableRow.getBoundsInParent();
+        if (bounds.getMinY() >= 0 && bounds.getMaxY() <= height)
+          return;
+      }
+    }
+    table.scrollTo(row);
   }
 
   /**

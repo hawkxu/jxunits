@@ -1,9 +1,5 @@
-.x-value-field:provider-visible {
-  -fx-padding: 0.333333em 0 0.333333em 0.583em;
-}
-
-.x-value-field:provider-visible .provider {
-  -fx-padding: 0 3 0 3;
+.x-value-field .provider {
+  -fx-padding: 0 3 0 0;
 }
 
 .x-range-field .option:fixed {

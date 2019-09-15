@@ -29,6 +29,7 @@ import javafx.util.converter.LocalTimeStringConverter;
 import javafx.util.converter.LongStringConverter;
 import javafx.util.converter.NumberStringConverter;
 import javafx.util.converter.ShortStringConverter;
+import win.zqxu.jxunits.jre.XObjectUtils;
 
 /**
  * Use regular expression to restrict text input, do not support capturing group and OR(|)
@@ -117,7 +118,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * then no input restrictions
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see DefaultStringConverter
    */
@@ -131,7 +133,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * the pattern is null or empty, then no input restrictions
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see DefaultStringConverter
    */
@@ -145,7 +148,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * the pattern is null or empty, then no input restrictions
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see DefaultStringConverter
    */
@@ -159,7 +163,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * case. if the pattern is null or empty, then no input restrictions
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @param charCase
    *          the specified char case
    * @return XPatternFormatter instance
@@ -174,7 +179,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>XTrimStringConverter</code> with pattern.
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see XTrimStringConverter
    */
@@ -187,7 +193,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>XTrimStringConverter</code> with pattern and char case.
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @param charCase
    *          the specified char case
    * @return XPatternFormatter instance
@@ -411,7 +418,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * with pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see NumberStringConverter
    */
@@ -436,7 +444,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>ByteStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see ByteStringConverter
    */
@@ -461,7 +470,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>ShortStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see ShortStringConverter
    */
@@ -513,7 +523,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>IntegerStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see IntegerStringConverter
    */
@@ -553,7 +564,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>LongStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see LongStringConverter
    */
@@ -593,7 +605,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>BigIntegerStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see BigIntegerStringConverter
    */
@@ -635,7 +648,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>FloatStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see FloatStringConverter
    */
@@ -677,7 +691,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>DoubleStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see DoubleStringConverter
    */
@@ -720,7 +735,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * <code>BigDecimalStringConverter</code> and specified pattern
    * 
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see BigDecimalStringConverter
    */
@@ -773,7 +789,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the date format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see Date
    */
@@ -817,7 +834,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the time format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see Date
    */
@@ -861,7 +879,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the date time format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see Date
    */
@@ -905,7 +924,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the date format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see LocalDateStringConverter
    */
@@ -949,7 +969,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the time format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see LocalTimeStringConverter
    */
@@ -993,7 +1014,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param format
    *          the date time format string
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @return XPatternFormatter instance
    * @see LocalDateTimeStringConverter
    */
@@ -1001,7 +1023,74 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
     return new XPatternFormatter<>(XJavaTimeConverter.DATETIME(format), pattern);
   }
 
+  /**
+   * Create a read only XPatternFormatter instance for convert value to display text.
+   * usually, create a read only XPatternFormatter instance just because it can be cloned,
+   * on the other hand, creating a read-only TextFormatter is also very simple.
+   * 
+   * @param <V>
+   *          value type
+   * @return read only XPatternFormatter instance
+   */
+  @SuppressWarnings({"unchecked"})
+  public static <V> XPatternFormatter<V> READONLY() {
+    return (XPatternFormatter<V>) new XPatternFormatter<Object>(
+        new StringConverter<Object>() {
+          @Override
+          public String toString(Object object) {
+            return object == null ? "" : object.toString();
+          }
+
+          @Override
+          public Object fromString(String string) {
+            throw new UnsupportedOperationException();
+          }
+        });
+  }
+
+  /**
+   * Create a read only XPatternFormatter instance for convert value to display text.
+   * usually, create a read only XPatternFormatter instance just because it can be cloned,
+   * on the other hand, creating a read-only TextFormatter is also very simple.
+   * 
+   * @param <V>
+   *          value type
+   * @param converter
+   *          the converter
+   * @return read only XPatternFormatter instance
+   */
+  public static <V> XPatternFormatter<V> READONLY(StringConverter<V> converter) {
+    return new XPatternFormatter<>(converter, null, null, null);
+  }
+
+  /**
+   * Create a read only XPatternFormatter instance for convert value to display text.
+   * usually, create a read only XPatternFormatter instance just because it can be cloned,
+   * on the other hand, creating a read-only TextFormatter is also very simple.
+   * 
+   * @param <V>
+   *          value type
+   * @param converter
+   *          the converter
+   * @param defaultValue
+   *          default value
+   * @return read only XPatternFormatter instance
+   */
+  public static <V> XPatternFormatter<V> READONLY(StringConverter<V> converter, V defaultValue) {
+    return new XPatternFormatter<>(converter, null, null, defaultValue);
+  }
+
   private V defaultValue;
+
+  /**
+   * Construct a read only XPatternFormatter instance for convert value to display text
+   * 
+   * @param valueConverter
+   *          the value converter
+   */
+  public XPatternFormatter(StringConverter<V> valueConverter) {
+    this(valueConverter, null, null, null);
+  }
 
   /**
    * Constructor with value converter and pattern
@@ -1009,7 +1098,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param valueConverter
    *          the value converter
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @throws PatternSyntaxException
    *           If the pattern's syntax is invalid
    */
@@ -1018,24 +1108,13 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
   }
 
   /**
-   * Constructor with value converter and specified char case
-   * 
-   * @param valueConverter
-   *          the value converter
-   * @param charCase
-   *          the specified char case
-   */
-  public XPatternFormatter(StringConverter<V> valueConverter, CharCase charCase) {
-    this(valueConverter, null, charCase, null);
-  }
-
-  /**
    * Constructor with value converter, pattern and specified char case
    * 
    * @param valueConverter
    *          the value converter
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @param charCase
    *          the specified char case
    * @throws PatternSyntaxException
@@ -1051,7 +1130,8 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    * @param valueConverter
    *          the value converter
    * @param pattern
-   *          the regular expression pattern
+   *          the regular expression pattern, null or empty pattern will cause the
+   *          formatter read only
    * @param charCase
    *          the specified char case
    * @param defaultValue
@@ -1072,6 +1152,15 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
    */
   public String getPattern() {
     return ((PatternFilter) getFilter()).getPattern();
+  }
+
+  /**
+   * determine whether this formatter is read only (empty pattern)
+   * 
+   * @return true or false
+   */
+  public boolean isReadonly() {
+    return ((PatternFilter) getFilter()).isReadonly();
   }
 
   /**
@@ -1141,13 +1230,9 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
     }
 
     private void analyzePattern(String pattern) {
-      if (pattern == null) pattern = "";
-      Pattern.compile(pattern); // check pattern
       this.pattern = pattern;
-      if (pattern.isEmpty()) {
-        patterns = new Pattern[0];
-        return;
-      }
+      if (XObjectUtils.isEmpty(pattern)) return;
+      Pattern.compile(pattern); // check pattern
       List<Pattern> patternList = new ArrayList<>();
       int start = 0, close = 0, steps;
       int bracket = 0, brackets = 0;
@@ -1221,10 +1306,15 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
       return m.find() ? m.group(1).length() + 1 : 2;
     }
 
+    public boolean isReadonly() {
+      return patterns == null;
+    }
+
     @Override
     public Change apply(Change change) {
       if (!change.isContentChange())
         return change;
+      if (isReadonly()) return null;
       applyCharCase(change);
       return applyPatterns(change);
     }
@@ -1238,7 +1328,6 @@ public class XPatternFormatter<V> extends TextFormatter<V> {
     }
 
     private Change applyPatterns(Change change) {
-      if (patterns.length == 0) return change;
       String newText = change.getControlNewText();
       if (newText.isEmpty()) return change;
       String oldText = change.getControlText();
