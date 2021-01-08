@@ -42,6 +42,7 @@ public class XJfxTest {
         stream.write(String.format(pattern, "").getBytes());
       }
       stream.write(node.toString().getBytes());
+      stream.write(("[" + node.getId() + "]").getBytes());
       stream.write(System.lineSeparator().getBytes());
       if (node instanceof Parent)
         for (Node child : ((Parent) node).getChildrenUnmodifiable())

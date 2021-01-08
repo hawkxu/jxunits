@@ -92,6 +92,40 @@ public class XObjectUtils {
   }
 
   /**
+   * Get declared field in object's class and its super classes
+   * 
+   * @param object
+   *          the object
+   * @param name
+   *          the field name
+   * @return the declared field or null if not found
+   */
+  public static Field getField(Object object, String name) {
+    return getField(object.getClass(), name);
+  }
+
+  /**
+   * Get declared field in class and its super classes
+   * 
+   * @param clazz
+   *          the class
+   * @param name
+   *          the field name
+   * @return the declared field or null if not found
+   */
+  public static Field getField(Class<?> clazz, String name) {
+    while (clazz != null) {
+      try {
+        return clazz.getDeclaredField(name);
+      } catch (ReflectiveOperationException ex) {
+        // safely ignore reflective exceptions
+      }
+      clazz = clazz.getSuperclass();
+    }
+    return null;
+  }
+
+  /**
    * Get declared method in object's class and its super classes
    * 
    * @param object
@@ -120,10 +154,9 @@ public class XObjectUtils {
   public static Method getMethod(Class<?> clazz, String name, Class<?>... parameterTypes) {
     while (clazz != null) {
       try {
-        Method method = clazz.getDeclaredMethod(name, parameterTypes);
-        if (method != null) return method;
-      } catch (Exception ex) {
-        // safely ignored any exception
+        return clazz.getDeclaredMethod(name, parameterTypes);
+      } catch (ReflectiveOperationException ex) {
+        // safely ignore reflective exceptions
       }
       clazz = clazz.getSuperclass();
     }

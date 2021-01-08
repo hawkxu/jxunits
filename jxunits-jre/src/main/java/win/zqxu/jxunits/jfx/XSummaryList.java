@@ -311,6 +311,7 @@ public class XSummaryList<S> extends TransformationList<XSummaryItem<S>, S> {
     }
   }
 
+  @Override
   protected void sourceChanged(Change<? extends S> c) {
     beginChange();
     try {
@@ -434,7 +435,9 @@ public class XSummaryList<S> extends TransformationList<XSummaryItem<S>, S> {
       count = add ? 1 : -1;
       differenceValues = buildDifferenceValues(add, sourceItem);
     }
-    updateSummary(new SummaryItemImpl<>(false), count, from, differenceValues);
+    if (totalProduce) {
+      updateSummary(new SummaryItemImpl<>(false), count, from, differenceValues);
+    }
     List<XSummaryOrder<S, ?>> groupKeys = new ArrayList<>();
     if (orders == null) return;
     for (XSummaryOrder<S, ?> order : orders) {

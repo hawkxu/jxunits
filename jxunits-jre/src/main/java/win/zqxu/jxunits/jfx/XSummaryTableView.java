@@ -133,7 +133,7 @@ public class XSummaryTableView<S> extends TableView<XSummaryItem<S>> {
       this, "totalRowProduce", true) {
     @Override
     protected void invalidated() {
-      if (updateLocker != 0) comber.get().setTotalProduce(get());
+      if (updateLocker == 0) comber.get().setTotalProduce(get());
     }
   };
 

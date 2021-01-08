@@ -33,6 +33,7 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
   private IntegerProperty prefColumnCount = new SimpleIntegerProperty(this, "prefColumnCount", 12);
   private BooleanProperty interval = new SimpleBooleanProperty(this, "interval", true);
   private BooleanProperty multiple = new SimpleBooleanProperty(this, "multiple", true);
+  private BooleanProperty hideOption = new SimpleBooleanProperty(this, "hideOption", false);
   private ObjectProperty<XRangeOption> fixedOption;
 
   public XRangeField() {
@@ -289,6 +290,30 @@ public class XRangeField<T extends Comparable<? super T>> extends Control {
    */
   public final void setMultiple(boolean multiple) {
     multipleProperty().set(multiple);
+  }
+
+  /**
+   * property of whether hide option button
+   * @return hide options property
+   */
+  public final BooleanProperty hideOptionProperty() {
+    return hideOption;
+  }
+
+  /**
+   * Determine whether hide option button
+   * @return true or false
+   */
+  public final boolean isHideOption() {
+    return hideOption.get();
+  }
+
+  /**
+   * Set whether hide option button
+   * @param hideOption true or false
+   */
+  public final void setHideOption(boolean hideOption) {
+    this.hideOption.set(hideOption);
   }
 
   /**

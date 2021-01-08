@@ -126,6 +126,7 @@ public class XValueField<T> extends TextField {
       return "value";
     }
 
+    @Override
     protected void invalidated() {
       handleValueChanged(get());
     }

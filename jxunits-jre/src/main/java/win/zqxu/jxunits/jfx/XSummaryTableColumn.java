@@ -207,6 +207,7 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
   private XSummaryColumnSummer<S, T> DEFAULT_SUMMER = new XSummaryColumnSummer<>(this);
   private ObjectProperty<XSummarySummer<S, T>> summer =
       new SimpleObjectProperty<XSummarySummer<S, T>>(this, "summer", DEFAULT_SUMMER) {
+        @Override
         public void set(XSummaryComber.XSummarySummer<S, T> newValue) {
           super.set(newValue != null ? newValue : DEFAULT_SUMMER);
         };
@@ -384,14 +385,17 @@ public class XSummaryTableColumn<S, T> extends TableColumn<XSummaryItem<S>, T> {
       this.column = column;
     }
 
+    @Override
     public final SortType getSortType() {
       return column.getSortType();
     }
 
+    @Override
     public Comparator<T> getComparator() {
       return column.getComparator();
     }
 
+    @Override
     public final boolean isSubtotalGroup() {
       return column.isSubtotalGroup();
     }

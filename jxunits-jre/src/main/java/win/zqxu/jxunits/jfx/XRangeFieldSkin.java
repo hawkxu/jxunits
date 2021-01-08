@@ -84,7 +84,9 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
     Map<Object, Object> props = control.getProperties();
     Object focusLow = props.remove("FOCUS-LOW");
     if (focused && !XJfxUtils.isFocusAncestor(control)) {
-      if (focusLow != null || btnOption.isDisable())
+      if (focusLow != null
+          || btnOption.isDisable()
+          || !btnOption.isVisible())
         xvfLow.requestFocus();
       else
         btnOption.requestFocus();
@@ -123,6 +125,7 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
     xvfHigh.valueProperty().addListener((v, o, n) -> handleHighChanged(n));
     control.intervalProperty().addListener((v, o, n) -> control.requestLayout());
     control.multipleProperty().addListener((v, o, n) -> control.requestLayout());
+    control.hideOptionProperty().addListener((v, o, n) -> control.requestLayout());
     handleFixedOption(control.getFixedOption());
     control.fixedOptionProperty().addListener((v, o, n) -> handleFixedOption(n));
   }
@@ -252,8 +255,11 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
 
   @Override
   protected void layoutChildren(double x, double y, double w, double h) {
-    layoutInArea(btnOption, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
-    x += btnOption.prefWidth(h) + 2;
+    btnOption.setVisible(!control.isHideOption());
+    if (!control.isHideOption()) {
+      layoutInArea(btnOption, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
+      x += btnOption.prefWidth(h) + 2;
+    }
     layoutInArea(xvfLow, x, 0, w, h, 0, Insets.EMPTY, false, false, HPos.LEFT, VPos.CENTER);
     x += xvfLow.prefWidth(h);
     boolean interval = isInterval();
@@ -276,7 +282,9 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
   @Override
   protected double computePrefWidth(double h, double topInset, double rightInset,
       double bottomInset, double leftInset) {
-    double width = leftInset + rightInset + btnOption.prefWidth(h) + 2 + xvfLow.prefWidth(h);
+    double width = leftInset + rightInset;
+    if (!control.isHideOption()) width += btnOption.prefWidth(h) + 2;
+    width += xvfLow.prefWidth(h);
     if (isInterval()) width += 20 + labTo.prefWidth(h) + 20 + xvfHigh.prefWidth(h);
     return !control.isMultiple() ? width : width + 5 + btnMultiple.prefWidth(h);
   }
@@ -288,6 +296,8 @@ public class XRangeFieldSkin<T extends Comparable<? super T>>
   @Override
   protected double computePrefHeight(double w, double topInset, double rightInset,
       double bottomInset, double leftInset) {
-    return topInset + bottomInset + Math.max(btnOption.prefHeight(-1), xvfLow.prefHeight(-1));
+    double prefHeight = xvfLow.prefHeight(-1);
+    if (!control.isHideOption()) prefHeight = Math.max(prefHeight, btnOption.prefHeight(-1));
+    return topInset + bottomInset + prefHeight;
   }
 }

@@ -39,12 +39,16 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import win.zqxu.jxunits.jre.XObjectUtils;
@@ -124,6 +128,20 @@ public class XJfxUtils {
   }
 
   /**
+   * show a warning message with Yes/No buttons
+   * 
+   * @param owner
+   *          a reference node in the owner window
+   * @param message
+   *          the message text
+   * @return true if the Yes button clicked
+   */
+  public static boolean showYesNoWarn(Node owner, String message) {
+    return showAlert(owner, AlertType.WARNING, message, ButtonType.YES,
+        ButtonType.NO) == ButtonType.YES;
+  }
+
+  /**
    * show a confirmation message with OK/Cancel buttons
    * 
    * @param owner
@@ -134,6 +152,20 @@ public class XJfxUtils {
    */
   public static boolean showOkCancel(Node owner, String message) {
     return showAlert(owner, AlertType.CONFIRMATION, message, ButtonType.OK,
+        ButtonType.CANCEL) == ButtonType.OK;
+  }
+
+  /**
+   * show a warning message with OK/Cancel buttons
+   * 
+   * @param owner
+   *          a reference node in the owner window
+   * @param message
+   *          the message text
+   * @return true if the OK button clicked
+   */
+  public static boolean showOkWarn(Node owner, String message) {
+    return showAlert(owner, AlertType.WARNING, message, ButtonType.OK,
         ButtonType.CANCEL) == ButtonType.OK;
   }
 
@@ -639,6 +671,25 @@ public class XJfxUtils {
   }
 
   /**
+   * hide dialog button bar
+   * 
+   * @param pane
+   *          the dialog pane
+   */
+  public static void hideDialogButtonBar(DialogPane pane) {
+    if (Platform.isFxApplicationThread()) {
+      Node node = pane.lookup(".button-bar");
+      if (node instanceof Region) {
+        Region buttonBar = (Region) node;
+        buttonBar.setPrefHeight(0);
+        buttonBar.setVisible(false);
+      }
+    } else {
+      Platform.runLater(() -> hideDialogButtonBar(pane));
+    }
+  }
+
+  /**
    * close window which own the reference node, fire WindowEvent.WINDOW_CLOSE_REQUEST for
    * the window
    * 
@@ -993,5 +1044,42 @@ public class XJfxUtils {
     } catch (InterruptedException ex) {
       throw ex;
     }
+  }
+
+  /**
+   * get clipboard plain text content
+   * 
+   * @return clipboard plain text or empty string
+   */
+  public static String getClipboardText() {
+    Clipboard clipboard = Clipboard.getSystemClipboard();
+    Object content = clipboard.getContent(DataFormat.PLAIN_TEXT);
+    return content == null ? "" : (String) content;
+  }
+
+  /**
+   * set clipboard content to the string
+   * 
+   * @param text
+   *          the string to set
+   */
+  public static void setClipboardText(String text) {
+    ClipboardContent content = new ClipboardContent();
+    content.putString(text);
+    Clipboard.getSystemClipboard().setContent(content);
+  }
+
+  /**
+   * Set title for the owner window contains the refer node, no action if the owner window
+   * is not a {@link Stage}
+   * 
+   * @param refer
+   *          a refer node in the window
+   * @param title
+   *          the new title to set
+   */
+  public static void setTitle(Node refer, String title) {
+    Window window = refer.getScene().getWindow();
+    if (window instanceof Stage) ((Stage) window).setTitle(title);
   }
 }

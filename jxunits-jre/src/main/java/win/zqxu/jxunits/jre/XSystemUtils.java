@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -127,5 +128,38 @@ public class XSystemUtils {
 
   private static String pathToClassName(String path) {
     return path.replaceAll("^/|^\\\\|\\.class", "").replaceAll("/|\\\\", ".");
+  }
+
+  /**
+   * remove the directory and all sub-directories and files under it
+   * 
+   * @param directory
+   *          the directory to remove
+   * @return true or false
+   */
+  public static boolean removeDirectory(String directory) {
+    return removeDirectory(new File(directory));
+  }
+
+  /**
+   * remove the directory and all sub-directories and files under it
+   * 
+   * @param directory
+   *          the directory to remove
+   * @return true or false
+   */
+  public static boolean removeDirectory(File directory) {
+    if (!directory.isDirectory())
+      throw new InvalidParameterException(directory + " is not a directory");
+    return removeFiles(directory);
+  }
+
+  private static boolean removeFiles(File file) {
+    if (file.isDirectory()) {
+      for (File child : file.listFiles()) {
+        if (!removeFiles(child)) return false;
+      }
+    }
+    return file.delete(); // remove the file itself
   }
 }
